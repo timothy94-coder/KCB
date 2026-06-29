@@ -1,946 +1,1480 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-const ALL_INTERESTS = [
-  "Coffee dates","BJs","Raw BJs","Art","Music","Dancing","Raw BJ",
-  "Photography","3 Somes","Gym","Movies","Fashion","Beach","Yoga",
-  "Wine tasting","COB — Cum On Bodyz","Outdoors","CIM — Cum In Mouth","Brunch","Nature",
-  "Baking","COB — Cum On Body","Painting","Reading","Lesbian Shows","Pilates",
-  "Road trips","Lesbian Show","Anal","COB — Cum On Bodys","Fitness","Running",
+/* ═══════════════════════════════════════════════════════════════
+   WORKLINK KENYA — FINAL VERSION
+   ✅ No years-of-experience field, no location in registration
+   ✅ Factory Site Work added, Construction Site replaced
+   ✅ Office Cleaning, Company Cleaning, Receptionist added
+   ✅ All jobs available in ALL listed towns
+   ✅ Town selection happens at Apply step (not registration)
+   ✅ Accommodation note on relevant jobs
+   ✅ No employer number shown — user fills WhatsApp, gets added to group
+   ✅ Payment card pre-fills registration phone (editable)
+   ✅ Vacancies shown on every card
+   ✅ Real M-Pesa via starlink-backend-yb3n.onrender.com
+   ✅ Fully responsive
+═══════════════════════════════════════════════════════════════ */
+
+const SMARTPAY_ENDPOINT  = "https://starlink-backend-yb3n.onrender.com";
+const FEE         = 300;
+const WHATSAPP_NUMBER = "254712000000"; // ← change to your real WA number
+
+const BLUE   = "#1B6FE8";
+const NAVY   = "#0D1B3E";
+const GREEN  = "#10B981";
+const RED    = "#EF4444";
+const SLATE  = "#374151";
+const LIGHT  = "#F8F9FC";
+const BORDER = "#E5E7EB";
+const SHADOW = "0 4px 24px rgba(27,111,232,.10)";
+const SHADOW2= "0 8px 40px rgba(13,27,62,.14)";
+
+/* ─── ALL TOWNS ACROSS KENYA ─── */
+const ALL_TOWNS = [
+  "Nairobi",
+  "Kiambu",
+  "Ruiru",
+  "Thika",
+
+  "Nakuru",
+  "Naivasha",
+
+  "Eldoret",
+
+  "Kisumu",
+
+  "Mombasa",
+  "Nyali",
+
+  "Malindi",
+];
+/* ─── JOB DATA — all jobs in all towns ─── */
+const JOBS = [
+  {
+    id:1, icon:"🏭", cat:"Factory Work",
+    title:"Factory Site Workers",
+    desc:"Large manufacturing and packaging factories across Kenya urgently need general workers for production lines, packaging, sorting, and loading. No experience needed — full training given on your first day.",
+    vacancies:120, type:"Full-time", salary:"KES 32,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:true, accommodationNote:"Hostel accommodation available near factory at subsidised cost.",
+  },
+  {
+    id:2, icon:"🏗️", cat:"Construction",
+    title:"Construction Site Labourers",
+    desc:"Active building sites across all counties need strong, hardworking general labourers. Duties include mixing concrete, carrying materials, and basic site work. Transport from town centre provided daily.",
+    vacancies:150, type:"Full-time", salary:"KES 30,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:3, icon:"🛡️", cat:"Security",
+    title:"Security Guards (Day & Night Shifts)",
+    desc:"Reputable security firm hiring guards for commercial buildings, malls, banks and gated communities across all listed towns. Full uniform and training provided. 18+ and physically fit required.",
+    vacancies:80, type:"Full-time", salary:"KES 30,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:4, icon:"🧹", cat:"Office Cleaning",
+    title:"Office Cleaners (CBD & Commercial)",
+    desc:"Professional cleaning company needs reliable cleaners for corporate offices, banks, and government buildings. Morning shift starts 5am. Transport allowance and uniform included. Very flexible hours.",
+    vacancies:60, type:"Full-time", salary:"KES 30,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:5, icon:"🏢", cat:"Company Cleaning",
+    title:"Company & Industrial Cleaners",
+    desc:"Manufacturing companies, warehouses and large facilities need dedicated cleaners for floors, equipment areas and common spaces. Both day and night shifts available. Overtime pay included.",
+    vacancies:45, type:"Full-time", salary:"KES 31,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:6, icon:"💆", cat:"Cleaning",
+    title:"Hospital & Clinic Cleaners",
+    desc:"Private hospitals and clinics need health-conscious cleaners and ward porters. Protective equipment and uniform fully provided. Both male and female welcome. Must be respectful and punctual.",
+    vacancies:30, type:"Full-time", salary:"KES 31,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:7, icon:"📋", cat:"Receptionist",
+    title:"Receptionist / Front Desk Staff",
+    desc:"Hotels, hospitals, companies, and schools across Kenya need presentable, friendly receptionists to welcome visitors, answer calls and manage front desk operations. KCSE and basic computer knowledge helpful but not required.",
+    vacancies:35, type:"Full-time", salary:"KES 35,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:8, icon:"🎧", cat:"Receptionist",
+    title:"Customer Service & Call Centre Agents",
+    desc:"Growing companies need customer service representatives to handle enquiries by phone, WhatsApp and in person. Full training given. Fluent Swahili and basic English required. Smart phone provided.",
+    vacancies:50, type:"Full-time", salary:"KES 33,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:9, icon:"🏠", cat:"House Help",
+    title:"Domestic Workers / House Helps",
+    desc:"Families in towns across Kenya need reliable domestic workers for cooking, cleaning, child care and general household tasks. Live-in accommodation with meals included. Friendly household, ideal for new workers.",
+    vacancies:40, type:"Live-in", salary:"KES 30,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:true, accommodationNote:"Live-in position — free accommodation and meals provided by the employer.",
+  },
+  {
+    id:10, icon:"🚗", cat:"Driving",
+    title:"Delivery Riders & Van Drivers",
+    desc:"E-commerce and courier companies need delivery riders (boda boda) and light van drivers for town deliveries. Valid licence required. Fuel or mileage allowance paid daily on top of salary.",
+    vacancies:70, type:"Full-time", salary:"KES 35,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:11, icon:"🚌", cat:"Driving",
+    title:"PSV Matatu Conductors",
+    desc:"Matatu saccos operating in major towns need honest, reliable conductors. Commission on top of base salary. Must be 18+, sober and presentable. Uniform and insurance provided by employer.",
+    vacancies:55, type:"Full-time", salary:"KES 35,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:12, icon:"🍽️", cat:"Hospitality",
+    title:"Hotel Waiters & Waitresses",
+    desc:"Hotels and restaurants across all major towns need waitstaff for dining halls, room service and events. Full training on the job. Smart appearance and good customer attitude required.",
+    vacancies:40, type:"Full-time", salary:"KES 31,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:true, accommodationNote:"Accommodation may be offered depending on town of placement — confirmed at time of posting.",
+  },
+  {
+    id:13, icon:"🌾", cat:"Farm Work",
+    title:"General Farm Workers",
+    desc:"Large farms and agricultural estates across Kenya need workers for planting, weeding, harvesting and general farm tasks. Housing and meals provided on site. Ideal for applicants from rural areas.",
+    vacancies:150, type:"Full-time", salary:"KES 30,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:true, accommodationNote:"Free on-farm housing and daily meals included in the employment package.",
+  },
+  {
+    id:14, icon:"💰", cat:"Cashier",
+    title:"Supermarket & Shop Cashiers",
+    desc:"Retail chains and supermarkets expanding across Kenya need honest cashiers and shop floor attendants. KCSE required. Full uniform and training provided. Friendly and customer-focused attitude essential.",
+    vacancies:60, type:"Full-time", salary:"KES 30,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:15, icon:"🛍️", cat:"Shop Attendant",
+    title:"Shop Attendants & Merchandisers",
+    desc:"Retail businesses across all towns need floor staff for stocking shelves, attending to customers and general shop duties. No experience needed. Training given on day one.",
+    vacancies:80, type:"Full-time", salary:"KES 30,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:16, icon:"🧱", cat:"Masonry",
+    title:"Mason Helpers & Block Layers",
+    desc:"Construction projects across all counties need helpers for brick laying, plastering and general masonry. You will work alongside qualified masons and learn on the job. Hard workers welcome.",
+    vacancies:35, type:"Contract", salary:"KES 32,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:17, icon:"⚡", cat:"Electrical",
+    title:"Electrical Site Helpers",
+    desc:"Construction firms need helpers to assist licensed electricians on active sites. No training required — you will learn as you work. Must follow site safety rules. Protective gear provided.",
+    vacancies:20, type:"Contract", salary:"KES 40,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
+  {
+    id:18, icon:"🔧", cat:"Plumbing",
+    title:"Plumbing Helpers",
+    desc:"Property management and construction companies need plumbing helpers across all regions. Work alongside qualified plumbers, learn on the job and earn a steady income from week one.",
+    vacancies:18, type:"Full-time", salary:"KES 33,000/mo", start:"10 Jul 2026", deadline:"2026-07-09",
+    accommodation:false,
+  },
 ];
 
-// Two numbers that rotate per profile
-const NUMBERS = ["0738442380","0799426335"];
-const getNumber = (imgNum: number): string =>
-  NUMBERS[imgNum % 2];
-const PROFILES_RAW = [
-  { id:"nai001", name:"Abby", age:31, county:"Nairobi", town:"Westlands", tags:["sex","Raw BJ"], interests:[25,9,21,19], height:`5'2"`, lookingFor:"  something Real", isNew:false, verified:false, bisexual:false, imgNum:1 },
-  { id:"nai002", name:"Zoe", age:32, county:"Nairobi", town:"Kilimani", tags:["sex","Raw BJ"], interests:[15,28,5,23], height:`5'7"`, lookingFor:"  RealSex", isNew:true, verified:false, bisexual:false, imgNum:2 },
-  { id:"nai003", name:"Felicia", age:32, county:"Nairobi", town:"Karen", tags:["sex","Raw BJ"], interests:[6,30,15,2], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:3 },
-  { id:"nai004", name:"Grace", age:20, county:"Nairobi", town:"Lavington", tags:["sex","Raw BJ"], interests:[8,24,10,3], height:`5'4"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:4 },
-  { id:"nai005", name:"Sarah", age:20, county:"Nairobi", town:"South B", tags:["sex","Raw BJ"], interests:[26,20,14,25], height:`5'8"`, lookingFor:" RealSex", isNew:false, verified:true, bisexual:false, imgNum:5 },
-  { id:"nai006", name:"Lea", age:25, county:"Nairobi", town:"Kasarani", tags:["sex","Raw BJ"], interests:[2,18,3,9], height:`5'6"`, lookingFor:"Fun & Hookup", isNew:false, verified:true, bisexual:false, imgNum:6 },
-  { id:"nai007", name:"Mariamu", age:26, county:"Nairobi", town:"Ruaraka", tags:["sex","Raw BJ"], interests:[26,3,24,29], height:`5'10"`, lookingFor:"Calm & present partner", isNew:false, verified:false, bisexual:false, imgNum:7 },
-  { id:"nai008", name:"Christine", age:22, county:"Nairobi", town:"Zimmerman", tags:["sex","Raw BJ"], interests:[12,4,28,3], height:`5'9"`, lookingFor:"Calm & present partner", isNew:false, verified:false, bisexual:false, imgNum:8 },
-  { id:"nai009", name:"Aisha", age:33, county:"Nairobi", town:"Uthiru", tags:["sex","Raw BJ"], interests:[9,4,31,27], height:`5'6"`, lookingFor:"Something real", isNew:true, verified:true, bisexual:false, imgNum:9 },
-  { id:"nai010", name:"Abigail", age:28, county:"Nairobi", town:"Kinoo", tags:["sex","Raw BJ"], interests:[25,23,22,30], height:`5'4"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:false, bisexual:true, imgNum:10 },
-  { id:"nai011", name:"Alice", age:33, county:"Nairobi", town:"Langata", tags:["sex","Raw BJ"], interests:[30,2,13,28], height:`5'7"`, lookingFor:"Calm & present partner", isNew:false, verified:true, bisexual:false, imgNum:11 },
-  { id:"nai012", name:"Wanjira", age:32, county:"Nairobi", town:"CBD", tags:["sex","Raw BJ"], interests:[31,9,11,3], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:12 },
-  { id:"nai013", name:"Martha", age:22, county:"Nairobi", town:"Pipeline", tags:["sex","Raw BJ"], interests:[22,24,2,7], height:`5'9"`, lookingFor:"Serious relationship", isNew:false, verified:true, bisexual:false, imgNum:13 },
-  { id:"nai014", name:"Margaret", age:29, county:"Nairobi", town:"Eastleigh", tags:["sex","Raw BJ"], interests:[7,22,23,5], height:`5'2"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:14 },
-  { id:"nai015", name:"Amani", age:30, county:"Nairobi", town:"Embakasi", tags:["sex","Raw BJ"], interests:[11,21,2,9], height:`5'9"`, lookingFor:"Life partner", isNew:true, verified:false, bisexual:false, imgNum:15 },
-  { id:"nai016", name:"Eunice", age:20, county:"Nairobi", town:"Roysambu", tags:["sex","Raw BJ"], interests:[20,1,28,29], height:`5'6"`, lookingFor:"Long-term partner", isNew:true, verified:false, bisexual:false, imgNum:16 },
-  { id:"nai017", name:"Yvette", age:22, county:"Nairobi", town:"Githurai", tags:["sex","Raw BJ"], interests:[9,7,12,11], height:`5'9"`, lookingFor:"Something real", isNew:true, verified:true, bisexual:false, imgNum:17 },
-  { id:"nai018", name:"Amy", age:29, county:"Nairobi", town:"Kahawa", tags:["sex","Raw BJ"], interests:[28,15,1,7], height:`5'6"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:18 },
-  { id:"nai019", name:"Akoth", age:30, county:"Nairobi", town:"Njiru", tags:["sex","Raw BJ"], interests:[22,7,26,20], height:`5'8"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:19 },
-  { id:"nai020", name:"Luci", age:21, county:"Nairobi", town:"Umoja", tags:["sex","Raw BJ"], interests:[31,13,30,27], height:`5'8"`, lookingFor:"Fun & Hookup", isNew:false, verified:false, bisexual:false, imgNum:20 },
-  { id:"nai021", name:"Betty", age:34, county:"Nairobi", town:"Donholm", tags:["sex","Raw BJ"], interests:[28,3,25,22], height:`5'4"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:21 },
-  { id:"nai022", name:"Perpetua", age:30, county:"Nairobi", town:"Buruburu", tags:["sex","Raw BJ"], interests:[13,26,11,18], height:`5'4"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:true, imgNum:22 },
-  { id:"nai023", name:"Cherotich", age:24, county:"Nairobi", town:"Gigiri", tags:["sex","Raw BJ"], interests:[22,17,31,13], height:`5'9"`, lookingFor:"Grounded partner", isNew:false, verified:false, bisexual:false, imgNum:23 },
-  { id:"nai024", name:"Pia", age:29, county:"Nairobi", town:"Runda", tags:["sex","Raw BJ"], interests:[6,3,25,10], height:`5'3"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:24 },
-  { id:"nai025", name:"Una", age:28, county:"Nairobi", town:"Upperhill", tags:["sex","Raw BJ"], interests:[6,17,28,25], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:25 },
-  { id:"nai026", name:"Luna", age:30, county:"Nairobi", town:"Parklands", tags:["sex","Raw BJ"], interests:[25,16,0,9], height:`5'9"`, lookingFor:"Serious relationship", isNew:false, verified:true, bisexual:false, imgNum:26 },
-  { id:"nai027", name:"Faith", age:31, county:"Nairobi", town:"Ngara", tags:["sex","Raw BJ"], interests:[1,28,0,12], height:`5'9"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:27 },
-  { id:"nai028", name:"Phoebe", age:34, county:"Nairobi", town:"Makongeni", tags:["sex","Raw BJ"], interests:[7,15,21,24], height:`5'6"`, lookingFor:"Relationship", isNew:false, verified:true, bisexual:false, imgNum:28 },
-  { id:"nai029", name:"Naserian", age:32, county:"Nairobi", town:"Mihango", tags:["sex","Raw BJ"], interests:[17,11,0,12], height:`5'4"`, lookingFor:"Calm & present partner", isNew:true, verified:false, bisexual:false, imgNum:29 },
-  { id:"nai030", name:"Carolyn", age:31, county:"Nairobi", town:"Kariobangi", tags:["sex","Raw BJ"], interests:[27,23,24,16], height:`5'2"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:true, imgNum:30 },
-  { id:"nai031", name:"Teresa", age:28, county:"Nairobi", town:"Westlands", tags:["sex","Raw BJ"], interests:[11,1,25,9], height:`5'4"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:31 },
-  { id:"nai032", name:"Tabitha", age:20, county:"Nairobi", town:"Kilimani", tags:["sex","Raw BJ"], interests:[7,29,27,24], height:`5'11"`, lookingFor:"Relationship", isNew:false, verified:false, bisexual:false, imgNum:32 },
-  { id:"nai033", name:"Del", age:23, county:"Nairobi", town:"Karen", tags:["sex","Raw BJ"], interests:[17,0,14,18], height:`5'11"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:33 },
-  { id:"nai034", name:"Lilian", age:24, county:"Nairobi", town:"Lavington", tags:["sex","Raw BJ"], interests:[5,2,1,17], height:`5'11"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:34 },
-  { id:"nai035", name:"Nadira", age:21, county:"Nairobi", town:"South B", tags:["sex","Raw BJ"], interests:[23,16,21,0], height:`5'11"`, lookingFor:"Grounded partner", isNew:false, verified:false, bisexual:false, imgNum:35 },
-  { id:"nai036", name:"Wes", age:23, county:"Nairobi", town:"Kasarani", tags:["sex","Raw BJ"], interests:[14,6,12,30], height:`5'11"`, lookingFor:"Travel partner & Hookup", isNew:true, verified:true, bisexual:false, imgNum:36 },
-  { id:"nai037", name:"Ida", age:22, county:"Nairobi", town:"Ruaraka", tags:["sex","Raw BJ"], interests:[30,0,15,8], height:`5'6"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:37 },
-  { id:"nai038", name:"Vanessa", age:26, county:"Nairobi", town:"Zimmerman", tags:["sex","Raw BJ"], interests:[13,15,18,28], height:`5'9"`, lookingFor:"Long-term partner", isNew:true, verified:true, bisexual:true, imgNum:38 },
-  { id:"nai039", name:"Cara", age:28, county:"Nairobi", town:"Uthiru", tags:["sex","Raw BJ"], interests:[6,8,15,1], height:`5'7"`, lookingFor:"Calm & present partner", isNew:false, verified:false, bisexual:false, imgNum:39 },
-  { id:"nai040", name:"Judith", age:32, county:"Nairobi", town:"Kinoo", tags:["sex","Raw BJ"], interests:[11,17,9,28], height:`5'2"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:40 },
-  { id:"mom041", name:"Gertrude", age:21, county:"Mombasa", town:"Nyali", tags:["sex","Raw BJ"], interests:[24,19,4,31], height:`5'11"`, lookingFor:"Grounded partner", isNew:false, verified:true, bisexual:false, imgNum:41 },
-  { id:"mom042", name:"Xara", age:32, county:"Mombasa", town:"Tudor", tags:["sex","Raw BJ"], interests:[15,14,3,27], height:`5'9"`, lookingFor:"Grounded partner", isNew:false, verified:true, bisexual:false, imgNum:42 },
-  { id:"mom043", name:"Lorna", age:30, county:"Mombasa", town:"Bamburi", tags:["sex","Raw BJ"], interests:[13,29,11,20], height:`5'9"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:43 },
-  { id:"mom044", name:"Veronica", age:32, county:"Mombasa", town:"Shanzu", tags:["sex","Raw BJ"], interests:[0,21,29,1], height:`5'9"`, lookingFor:"Long-term partner", isNew:false, verified:true, bisexual:false, imgNum:44 },
-  { id:"mom045", name:"Nduku", age:23, county:"Mombasa", town:"Mkomani", tags:["sex","Raw BJ"], interests:[24,31,14,25], height:`5'9"`, lookingFor:"Intellectual partner", isNew:false, verified:true, bisexual:false, imgNum:45 },
-  { id:"mom046", name:"Nadira", age:26, county:"Mombasa", town:"Likoni", tags:["sex","Raw BJ"], interests:[21,16,29,24], height:`5'3"`, lookingFor:"Grounded partner", isNew:true, verified:false, bisexual:false, imgNum:46 },
-  { id:"mom047", name:"Euvine", age:28, county:"Mombasa", town:"Kisauni", tags:["sex","Raw BJ"], interests:[4,19,11,27], height:`5'8"`, lookingFor:"Serious relationship", isNew:false, verified:true, bisexual:false, imgNum:47 },
-  { id:"mom048", name:"Deborah", age:21, county:"Mombasa", town:"Diani", tags:["sex","Raw BJ"], interests:[17,28,1,20], height:`5'8"`, lookingFor:"Fun & Hookup", isNew:true, verified:true, bisexual:false, imgNum:48 },
-  { id:"mom049", name:"Tabitha", age:20, county:"Mombasa", town:"Shelly Beach", tags:["sex","Raw BJ"], interests:[6,8,0,18], height:`5'4"`, lookingFor:"Serious relationship", isNew:false, verified:true, bisexual:false, imgNum:49 },
-  { id:"mom050", name:"Vivian", age:29, county:"Mombasa", town:"Kongowea", tags:["sex","Raw BJ"], interests:[21,6,31,13], height:`5'7"`, lookingFor:"Grounded partner", isNew:false, verified:false, bisexual:false, imgNum:50 },
-  { id:"mom051", name:"Lea", age:33, county:"Mombasa", town:"Old Town", tags:["sex","Raw BJ"], interests:[5,23,27,13], height:`5'2"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:51 },
-  { id:"mom052", name:"Cherotich", age:24, county:"Mombasa", town:"Mtwapa", tags:["sex","Raw BJ"], interests:[0,26,31,17], height:`5'2"`, lookingFor:"Grounded partner", isNew:false, verified:true, bisexual:false, imgNum:52 },
-  { id:"mom053", name:"Soila", age:21, county:"Mombasa", town:"Jomvu", tags:["sex","Raw BJ"], interests:[29,5,7,27], height:`5'4"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:53 },
-  { id:"mom054", name:"Anna", age:20, county:"Mombasa", town:"Changamwe", tags:["sex","Raw BJ"], interests:[24,10,21,2], height:`5'4"`, lookingFor:"Long-term partner", isNew:false, verified:false, bisexual:false, imgNum:54 },
-  { id:"mom055", name:"Elena", age:21, county:"Mombasa", town:"Miritini", tags:["sex","Raw BJ"], interests:[0,14,27,11], height:`5'2"`, lookingFor:"Travel partner & Hookup", isNew:true, verified:true, bisexual:false, imgNum:55 },
-  { id:"mom056", name:"Claudia", age:30, county:"Mombasa", town:"Kizingo", tags:["sex","Raw BJ"], interests:[15,24,13,14], height:`5'4"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:56 },
-  { id:"mom057", name:"Joyce", age:22, county:"Mombasa", town:"Ganjoni", tags:["sex","Raw BJ"], interests:[13,17,10,5], height:`5'11"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:false, bisexual:true, imgNum:57 },
-  { id:"mom058", name:"Sara", age:29, county:"Mombasa", town:"Majengo", tags:["sex","Raw BJ"], interests:[7,28,15,10], height:`5'7"`, lookingFor:"Calm & present partner", isNew:false, verified:true, bisexual:false, imgNum:58 },
-  { id:"mom059", name:"Kay", age:29, county:"Mombasa", town:"Tononoka", tags:["sex","Raw BJ"], interests:[19,18,28,20], height:`5'2"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:true, imgNum:59 },
-  { id:"mom060", name:"Vera", age:28, county:"Mombasa", town:"Mikindani", tags:["sex","Raw BJ"], interests:[25,17,9,1], height:`5'6"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:60 },
-  { id:"mom061", name:"Amani", age:26, county:"Mombasa", town:"Nyali", tags:["sex","Raw BJ"], interests:[5,14,18,9], height:`5'8"`, lookingFor:"Intellectual partner", isNew:false, verified:false, bisexual:false, imgNum:61 },
-  { id:"mom062", name:"Dee", age:19, county:"Mombasa", town:"Tudor", tags:["sex","Raw BJ"], interests:[1,8,16,29], height:`5'6"`, lookingFor:"Travel partner & Hookup", isNew:true, verified:true, bisexual:false, imgNum:62 },
-  { id:"mom063", name:"Mia", age:33, county:"Mombasa", town:"Bamburi", tags:["sex","Raw BJ"], interests:[2,13,30,27], height:`5'6"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:false, imgNum:63 },
-  { id:"mom064", name:"Priscilla", age:34, county:"Mombasa", town:"Shanzu", tags:["sex","Raw BJ"], interests:[24,26,30,4], height:`5'11"`, lookingFor:"Serious relationship", isNew:false, verified:true, bisexual:true, imgNum:64 },
-  { id:"mom065", name:"Violet", age:22, county:"Mombasa", town:"Mkomani", tags:["sex","Raw BJ"], interests:[11,4,18,6], height:`5'8"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:65 },
-  { id:"mom066", name:"Olivia", age:31, county:"Mombasa", town:"Likoni", tags:["sex","Raw BJ"], interests:[13,4,29,2], height:`5'6"`, lookingFor:"Intellectual partner", isNew:true, verified:false, bisexual:false, imgNum:66 },
-  { id:"mom067", name:"Flora", age:33, county:"Mombasa", town:"Kisauni", tags:["sex","Raw BJ"], interests:[18,17,26,24], height:`5'8"`, lookingFor:"Long-term partner", isNew:false, verified:true, bisexual:false, imgNum:67 },
-  { id:"mom068", name:"Akoth", age:19, county:"Mombasa", town:"Diani", tags:["sex","Raw BJ"], interests:[0,11,2,5], height:`5'9"`, lookingFor:"Fun & Hookup", isNew:false, verified:true, bisexual:false, imgNum:68 },
-  { id:"mom069", name:"Rachel", age:24, county:"Mombasa", town:"Shelly Beach", tags:["sex","Raw BJ"], interests:[30,31,1,19], height:`5'9"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:69 },
-  { id:"mom070", name:"Dorcas", age:25, county:"Mombasa", town:"Kongowea", tags:["sex","Raw BJ"], interests:[17,23,8,28], height:`5'2"`, lookingFor:"Relationship", isNew:true, verified:true, bisexual:false, imgNum:70 },
-  { id:"nak071", name:"Patricia", age:24, county:"Nakuru", town:"Nakuru Town", tags:["sex","Raw BJ"], interests:[22,10,24,14], height:`5'9"`, lookingFor:"Calm & present partner", isNew:true, verified:false, bisexual:false, imgNum:71 },
-  { id:"nak072", name:"Pam", age:33, county:"Nakuru", town:"Milimani", tags:["sex","Raw BJ"], interests:[24,30,28,20], height:`5'6"`, lookingFor:"Intellectual partner", isNew:false, verified:true, bisexual:false, imgNum:72 },
-  { id:"nak073", name:"Beatrice", age:33, county:"Nakuru", town:"Section 58", tags:["sex","Raw BJ"], interests:[15,12,26,30], height:`5'8"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:73 },
-  { id:"nak074", name:"Leah", age:29, county:"Nakuru", town:"Pipeline", tags:["sex","Raw BJ"], interests:[2,0,4,8], height:`5'5"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:false, imgNum:74 },
-  { id:"nak075", name:"Sara", age:24, county:"Nakuru", town:"Lanet", tags:["sex","Raw BJ"], interests:[21,18,27,1], height:`5'4"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:75 },
-  { id:"nak076", name:"Betty", age:24, county:"Nakuru", town:"Free Area", tags:["sex","Raw BJ"], interests:[25,21,11,12], height:`5'5"`, lookingFor:"Relationship", isNew:false, verified:true, bisexual:false, imgNum:76 },
-  { id:"nak077", name:"Amy", age:30, county:"Nakuru", town:"Flamingo", tags:["sex","Raw BJ"], interests:[0,22,6,4], height:`5'8"`, lookingFor:"Travel partner & Hookup", isNew:true, verified:false, bisexual:false, imgNum:77 },
-  { id:"nak078", name:"Isla", age:24, county:"Nakuru", town:"Barnabas", tags:["sex","Raw BJ"], interests:[23,17,7,13], height:`5'9"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:78 },
-  { id:"nak079", name:"Winnie", age:26, county:"Nakuru", town:"Bondeni", tags:["sex","Raw BJ"], interests:[22,12,10,16], height:`5'6"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:false, bisexual:false, imgNum:79 },
-  { id:"nak080", name:"Xenia", age:25, county:"Nakuru", town:"London", tags:["sex","Raw BJ"], interests:[27,0,22,6], height:`5'9"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:80 },
-  { id:"nak081", name:"Fay", age:23, county:"Nakuru", town:"Nakuru Town", tags:["sex","Raw BJ"], interests:[1,7,11,30], height:`5'5"`, lookingFor:"Grounded partner", isNew:false, verified:false, bisexual:false, imgNum:81 },
-  { id:"nak082", name:"Salome", age:29, county:"Nakuru", town:"Milimani", tags:["sex","Raw BJ"], interests:[13,23,15,4], height:`5'7"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:82 },
-  { id:"nak083", name:"Xin", age:22, county:"Nakuru", town:"Section 58", tags:["sex","Raw BJ"], interests:[16,0,20,7], height:`5'10"`, lookingFor:"Fun & Hookup", isNew:false, verified:false, bisexual:false, imgNum:83 },
-  { id:"nak084", name:"Pauline", age:29, county:"Nakuru", town:"Pipeline", tags:["sex","Raw BJ"], interests:[29,0,22,20], height:`5'11"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:84 },
-  { id:"nak085", name:"Tabitha", age:34, county:"Nakuru", town:"Lanet", tags:["sex","Raw BJ"], interests:[20,31,10,1], height:`5'3"`, lookingFor:"Long-term partner", isNew:false, verified:true, bisexual:false, imgNum:85 },
-  { id:"nak086", name:"Teresa", age:27, county:"Nakuru", town:"Free Area", tags:["sex","Raw BJ"], interests:[23,8,10,11], height:`5'7"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:false, imgNum:86 },
-  { id:"nak087", name:"Hana", age:25, county:"Nakuru", town:"Flamingo", tags:["sex","Raw BJ"], interests:[26,23,25,1], height:`5'3"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:87 },
-  { id:"nak088", name:"Yvonne", age:25, county:"Nakuru", town:"Barnabas", tags:["sex","Raw BJ"], interests:[5,23,14,29], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:88 },
-  { id:"nak089", name:"Lorna", age:21, county:"Nakuru", town:"Bondeni", tags:["sex","Raw BJ"], interests:[31,18,12,29], height:`5'8"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:89 },
-  { id:"nak090", name:"Penelope", age:23, county:"Nakuru", town:"London", tags:["sex","Raw BJ"], interests:[3,2,15,21], height:`5'11"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:90 },
-  { id:"nak091", name:"Pamela", age:23, county:"Nakuru", town:"Nakuru Town", tags:["sex","Raw BJ"], interests:[14,25,31,15], height:`5'11"`, lookingFor:"Long-term partner", isNew:false, verified:true, bisexual:false, imgNum:91 },
-  { id:"nak092", name:"Doreen", age:30, county:"Nakuru", town:"Milimani", tags:["sex","Raw BJ"], interests:[5,11,1,9], height:`5'10"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:92 },
-  { id:"nak093", name:"Christine", age:21, county:"Nakuru", town:"Section 58", tags:["sex","Raw BJ"], interests:[13,19,2,28], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:93 },
-  { id:"nak094", name:"Wes", age:27, county:"Nakuru", town:"Pipeline", tags:["sex","Raw BJ"], interests:[25,7,3,0], height:`5'10"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:true, imgNum:94 },
-  { id:"nak095", name:"Ann", age:25, county:"Nakuru", town:"Lanet", tags:["sex","Raw BJ"], interests:[16,6,17,14], height:`5'3"`, lookingFor:"Relationship", isNew:false, verified:true, bisexual:false, imgNum:95 },
-  { id:"kia096", name:"Irene", age:20, county:"Kiambu", town:"Thindigua", tags:["sex","Raw BJ"], interests:[9,10,26,14], height:`5'4"`, lookingFor:"Relationship", isNew:true, verified:false, bisexual:true, imgNum:96 },
-  { id:"kia097", name:"Cynthia", age:29, county:"Kiambu", town:"Ruiru", tags:["sex","Raw BJ"], interests:[11,2,23,27], height:`5'7"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:97 },
-  { id:"kia098", name:"Lydia", age:24, county:"Kiambu", town:"Kiambu Town", tags:["sex","Raw BJ"], interests:[14,28,16,22], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:98 },
-  { id:"kia099", name:"Rose", age:25, county:"Kiambu", town:"Thika", tags:["sex","Raw BJ"], interests:[24,30,27,23], height:`5'10"`, lookingFor:"Fun & Hookup", isNew:false, verified:false, bisexual:false, imgNum:99 },
-  { id:"kia100", name:"Dorcas", age:30, county:"Kiambu", town:"Limuru", tags:["sex","Raw BJ"], interests:[26,24,9,5], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:100 },
-  { id:"kia101", name:"Naomi", age:29, county:"Kiambu", town:"Kikuyu", tags:["sex","Raw BJ"], interests:[11,0,23,19], height:`5'8"`, lookingFor:"Relationship", isNew:false, verified:true, bisexual:false, imgNum:101 },
-  { id:"kia102", name:"Bianca", age:30, county:"Kiambu", town:"Juja", tags:["sex","Raw BJ"], interests:[2,22,5,9], height:`5'5"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:102 },
-  { id:"kia103", name:"Ann", age:32, county:"Kiambu", town:"Githurai", tags:["sex","Raw BJ"], interests:[30,9,22,10], height:`5'3"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:103 },
-  { id:"kia104", name:"Pam", age:28, county:"Kiambu", town:"Rongai", tags:["sex","Raw BJ"], interests:[23,14,18,7], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:104 },
-  { id:"kia105", name:"Beatrice", age:20, county:"Kiambu", town:"Tigoni", tags:["sex","Raw BJ"], interests:[10,15,14,3], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:true, imgNum:105 },
-  { id:"kia106", name:"Mary", age:24, county:"Kiambu", town:"Thindigua", tags:["sex","Raw BJ"], interests:[24,29,27,25], height:`5'5"`, lookingFor:"Serious relationship", isNew:true, verified:true, bisexual:false, imgNum:106 },
-  { id:"kia107", name:"Wanjiru", age:33, county:"Kiambu", town:"Ruiru", tags:["sex","Raw BJ"], interests:[28,13,25,27], height:`5'10"`, lookingFor:"Grounded partner", isNew:true, verified:true, bisexual:false, imgNum:107 },
-  { id:"kia108", name:"Mwikali", age:22, county:"Kiambu", town:"Kiambu Town", tags:["sex","Raw BJ"], interests:[23,19,18,2], height:`5'8"`, lookingFor:"Calm & present partner", isNew:false, verified:true, bisexual:false, imgNum:108 },
-  { id:"kia109", name:"Sarah", age:35, county:"Kiambu", town:"Thika", tags:["sex","Raw BJ"], interests:[23,31,13,12], height:`5'4"`, lookingFor:"Fun & Hookup", isNew:false, verified:true, bisexual:true, imgNum:109 },
-  { id:"kia110", name:"Salma", age:34, county:"Kiambu", town:"Limuru", tags:["sex","Raw BJ"], interests:[0,18,27,10], height:`5'7"`, lookingFor:"Relationship", isNew:false, verified:true, bisexual:false, imgNum:110 },
-  { id:"kia111", name:"Marion", age:29, county:"Kiambu", town:"Kikuyu", tags:["sex","Raw BJ"], interests:[18,13,20,5], height:`5'10"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:true, imgNum:111 },
-  { id:"kia112", name:"Winnie", age:23, county:"Kiambu", town:"Juja", tags:["sex","Raw BJ"], interests:[26,0,15,24], height:`5'9"`, lookingFor:"Relationship", isNew:true, verified:true, bisexual:false, imgNum:112 },
-  { id:"kia113", name:"Cess", age:33, county:"Kiambu", town:"Githurai", tags:["sex","Raw BJ"], interests:[17,3,18,2], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:113 },
-  { id:"kia114", name:"Val", age:20, county:"Kiambu", town:"Rongai", tags:["sex","Raw BJ"], interests:[18,16,31,4], height:`5'6"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:false, imgNum:114 },
-  { id:"kia115", name:"Wangechi", age:26, county:"Kiambu", town:"Tigoni", tags:["sex","Raw BJ"], interests:[31,17,11,18], height:`5'8"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:115 },
-  { id:"kia116", name:"Wes", age:30, county:"Kiambu", town:"Thindigua", tags:["sex","Raw BJ"], interests:[24,16,27,15], height:`5'7"`, lookingFor:"Grounded partner", isNew:false, verified:false, bisexual:false, imgNum:116 },
-  { id:"kia117", name:"Esther", age:27, county:"Kiambu", town:"Ruiru", tags:["sex","Raw BJ"], interests:[17,23,11,9], height:`5'8"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:117 },
-  { id:"kia118", name:"Cal", age:31, county:"Kiambu", town:"Kiambu Town", tags:["sex","Raw BJ"], interests:[4,9,15,1], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:118 },
-  { id:"kia119", name:"Vanessa", age:32, county:"Kiambu", town:"Thika", tags:["sex","Raw BJ"], interests:[13,20,24,29], height:`5'2"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:119 },
-  { id:"kia120", name:"Isla", age:21, county:"Kiambu", town:"Limuru", tags:["sex","Raw BJ"], interests:[1,14,5,26], height:`5'11"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:true, imgNum:120 },
-  { id:"kis121", name:"Ashley", age:34, county:"Kisumu", town:"Milimani", tags:["sex","Raw BJ"], interests:[6,31,18,17], height:`5'7"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:false, bisexual:true, imgNum:121 },
-  { id:"kis122", name:"Maureen", age:19, county:"Kisumu", town:"Kisumu CBD", tags:["sex","Raw BJ"], interests:[22,15,31,25], height:`5'6"`, lookingFor:"Something real", isNew:false, verified:false, bisexual:false, imgNum:122 },
-  { id:"kis123", name:"Aisha", age:26, county:"Kisumu", town:"Kondele", tags:["sex","Raw BJ"], interests:[7,6,18,12], height:`5'9"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:false, imgNum:123 },
-  { id:"kis124", name:"Christine", age:25, county:"Kisumu", town:"Riat Hills", tags:["sex","Raw BJ"], interests:[31,2,9,19], height:`5'2"`, lookingFor:"Life partner", isNew:false, verified:false, bisexual:true, imgNum:124 },
-  { id:"kis125", name:"Nova", age:25, county:"Kisumu", town:"Dunga", tags:["sex","Raw BJ"], interests:[8,29,2,9], height:`5'3"`, lookingFor:"Calm & present partner", isNew:false, verified:true, bisexual:false, imgNum:125 },
-  { id:"kis126", name:"Esther", age:30, county:"Kisumu", town:"Lolwe", tags:["sex","Raw BJ"], interests:[27,16,29,23], height:`5'11"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:126 },
-  { id:"kis127", name:"Nancy", age:21, county:"Kisumu", town:"Kibuye", tags:["sex","Raw BJ"], interests:[8,2,17,12], height:`5'9"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:127 },
-  { id:"kis128", name:"Nduku", age:26, county:"Kisumu", town:"Mamboleo", tags:["sex","Raw BJ"], interests:[5,17,28,19], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:128 },
-  { id:"kis129", name:"Norah", age:23, county:"Kisumu", town:"Nyalenda", tags:["sex","Raw BJ"], interests:[4,2,31,21], height:`5'11"`, lookingFor:"Relationship", isNew:true, verified:false, bisexual:false, imgNum:129 },
-  { id:"kis130", name:"Soila", age:25, county:"Kisumu", town:"Manyatta", tags:["sex","Raw BJ"], interests:[20,6,8,25], height:`5'2"`, lookingFor:"Intellectual partner", isNew:false, verified:false, bisexual:true, imgNum:130 },
-  { id:"kis131", name:"Winifred", age:26, county:"Kisumu", town:"Milimani", tags:["sex","Raw BJ"], interests:[7,23,16,22], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:131 },
-  { id:"kis132", name:"Eva", age:28, county:"Kisumu", town:"Kisumu CBD", tags:["sex","Raw BJ"], interests:[11,14,20,4], height:`5'5"`, lookingFor:"Fun & Hookup", isNew:false, verified:false, bisexual:false, imgNum:132 },
-  { id:"kis133", name:"Moraa", age:31, county:"Kisumu", town:"Kondele", tags:["sex","Raw BJ"], interests:[14,24,28,5], height:`5'9"`, lookingFor:"Calm & present partner", isNew:true, verified:true, bisexual:false, imgNum:133 },
-  { id:"kis134", name:"Julia", age:34, county:"Kisumu", town:"Riat Hills", tags:["sex","Raw BJ"], interests:[28,25,2,3], height:`5'5"`, lookingFor:"Calm & present partner", isNew:false, verified:false, bisexual:false, imgNum:134 },
-  { id:"kis135", name:"Nyambura", age:29, county:"Kisumu", town:"Dunga", tags:["sex","Raw BJ"], interests:[9,23,3,11], height:`5'6"`, lookingFor:"Fun & Hookup", isNew:false, verified:true, bisexual:false, imgNum:135 },
-  { id:"kis136", name:"Josephine", age:28, county:"Kisumu", town:"Lolwe", tags:["sex","Raw BJ"], interests:[19,2,20,17], height:`5'6"`, lookingFor:"Fun & Hookup", isNew:true, verified:true, bisexual:false, imgNum:136 },
-  { id:"kis137", name:"Wendy", age:30, county:"Kisumu", town:"Kibuye", tags:["sex","Raw BJ"], interests:[17,5,11,4], height:`5'9"`, lookingFor:"Intellectual partner", isNew:false, verified:false, bisexual:false, imgNum:137 },
-  { id:"kis138", name:"Jemutai", age:29, county:"Kisumu", town:"Mamboleo", tags:["sex","Raw BJ"], interests:[5,20,8,18], height:`5'7"`, lookingFor:"Intellectual partner", isNew:false, verified:false, bisexual:false, imgNum:138 },
-  { id:"kis139", name:"Dama", age:31, county:"Kisumu", town:"Nyalenda", tags:["sex","Raw BJ"], interests:[26,20,8,24], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:139 },
-  { id:"kis140", name:"Stella", age:25, county:"Kisumu", town:"Manyatta", tags:["sex","Raw BJ"], interests:[19,10,11,24], height:`5'6"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:true, imgNum:140 },
-  { id:"uas141", name:"Anna", age:25, county:"Uasin Gishu", town:"Eldoret", tags:["sex","Raw BJ"], interests:[23,30,0,26], height:`5'5"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:141 },
-  { id:"uas142", name:"Pendo", age:33, county:"Uasin Gishu", town:"Kapseret", tags:["sex","Raw BJ"], interests:[4,11,12,15], height:`5'4"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:142 },
-  { id:"uas143", name:"Joy", age:23, county:"Uasin Gishu", town:"Langas", tags:["sex","Raw BJ"], interests:[25,9,31,17], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:143 },
-  { id:"uas144", name:"Wambui", age:32, county:"Uasin Gishu", town:"Huruma", tags:["sex","Raw BJ"], interests:[8,13,6,9], height:`5'3"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:true, imgNum:144 },
-  { id:"uas145", name:"Flora", age:23, county:"Uasin Gishu", town:"Kimumu", tags:["sex","Raw BJ"], interests:[8,28,14,7], height:`5'5"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:145 },
-  { id:"uas146", name:"Kemunto", age:25, county:"Uasin Gishu", town:"Pioneer", tags:["sex","Raw BJ"], interests:[13,3,4,27], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:146 },
-  { id:"uas147", name:"Zawadi", age:22, county:"Uasin Gishu", town:"Eldoret", tags:["sex","Raw BJ"], interests:[29,25,22,10], height:`5'2"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:147 },
-  { id:"uas148", name:"Nina", age:25, county:"Uasin Gishu", town:"Kapseret", tags:["sex","Raw BJ"], interests:[11,13,26,7], height:`5'10"`, lookingFor:"Something real", isNew:false, verified:true, bisexual:false, imgNum:148 },
-  { id:"uas149", name:"Pam", age:22, county:"Uasin Gishu", town:"Langas", tags:["sex","Raw BJ"], interests:[22,31,27,26], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:149 },
-  { id:"uas150", name:"Bertha", age:32, county:"Uasin Gishu", town:"Huruma", tags:["sex","Raw BJ"], interests:[25,23,22,0], height:`5'3"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:150 },
-  { id:"uas151", name:"Rachael", age:32, county:"Uasin Gishu", town:"Kimumu", tags:["sex","Raw BJ"], interests:[4,3,29,13], height:`5'6"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:151 },
-  { id:"uas152", name:"Tabitha", age:19, county:"Uasin Gishu", town:"Pioneer", tags:["sex","Raw BJ"], interests:[13,4,29,6], height:`5'3"`, lookingFor:"Intellectual partner", isNew:false, verified:false, bisexual:false, imgNum:152 },
-  { id:"mac153", name:"Hilda", age:32, county:"Machakos", town:"Machakos Town", tags:["sex","Raw BJ"], interests:[17,26,27,3], height:`5'3"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:153 },
-  { id:"mac154", name:"Alice", age:23, county:"Machakos", town:"Athi River", tags:["sex","Raw BJ"], interests:[2,24,22,5], height:`5'3"`, lookingFor:"Fun & Hookup", isNew:false, verified:false, bisexual:true, imgNum:154 },
-  { id:"mac155", name:"Val", age:21, county:"Machakos", town:"Katani", tags:["sex","Raw BJ"], interests:[0,5,18,19], height:`5'4"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:155 },
-  { id:"mac156", name:"Vivienne", age:28, county:"Machakos", town:"Kangundo", tags:["sex","Raw BJ"], interests:[0,2,15,12], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:156 },
-  { id:"mac157", name:"Ann", age:23, county:"Machakos", town:"Syokimau", tags:["sex","Raw BJ"], interests:[15,18,9,7], height:`5'4"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:157 },
-  { id:"mac158", name:"Salma", age:34, county:"Machakos", town:"Mlolongo", tags:["sex","Raw BJ"], interests:[21,1,27,7], height:`5'11"`, lookingFor:"Life partner", isNew:true, verified:true, bisexual:false, imgNum:158 },
-  { id:"mac159", name:"Lydia", age:22, county:"Machakos", town:"Machakos Town", tags:["sex","Raw BJ"], interests:[2,22,21,14], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:159 },
-  { id:"mac160", name:"Wes", age:23, county:"Machakos", town:"Athi River", tags:["sex","Raw BJ"], interests:[4,15,2,21], height:`5'5"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:true, imgNum:160 },
-  { id:"mac161", name:"Pendo", age:27, county:"Machakos", town:"Katani", tags:["sex","Raw BJ"], interests:[25,16,18,27], height:`5'2"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:161 },
-  { id:"mac162", name:"Zara", age:32, county:"Machakos", town:"Kangundo", tags:["sex","Raw BJ"], interests:[0,17,26,21], height:`5'10"`, lookingFor:"Grounded partner", isNew:false, verified:false, bisexual:true, imgNum:162 },
-  { id:"mac163", name:"Sara", age:27, county:"Machakos", town:"Syokimau", tags:["sex","Raw BJ"], interests:[14,25,1,19], height:`5'5"`, lookingFor:"Relationship", isNew:false, verified:false, bisexual:false, imgNum:163 },
-  { id:"mac164", name:"Nina", age:30, county:"Machakos", town:"Mlolongo", tags:["sex","Raw BJ"], interests:[8,26,7,12], height:`5'4"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:164 },
-  { id:"mer165", name:"Phoebe", age:20, county:"Meru", town:"Meru Town", tags:["sex","Raw BJ"], interests:[19,7,2,20], height:`5'5"`, lookingFor:"Travel partner & Hookup", isNew:true, verified:false, bisexual:false, imgNum:165 },
-  { id:"mer166", name:"Bea", age:19, county:"Meru", town:"Nkubu", tags:["sex","Raw BJ"], interests:[22,9,14,27], height:`5'4"`, lookingFor:"Fun & Hookup", isNew:false, verified:false, bisexual:false, imgNum:166 },
-  { id:"mer167", name:"Miriam", age:35, county:"Meru", town:"Maua", tags:["sex","Raw BJ"], interests:[16,19,23,4], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:167 },
-  { id:"mer168", name:"Dee", age:26, county:"Meru", town:"Timau", tags:["sex","Raw BJ"], interests:[31,8,16,15], height:`5'8"`, lookingFor:"Adventure partner", isNew:true, verified:false, bisexual:false, imgNum:168 },
-  { id:"mer169", name:"Judith", age:21, county:"Meru", town:"Meru Town", tags:["sex","Raw BJ"], interests:[26,16,13,15], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:169 },
-  { id:"mer170", name:"Josephine", age:25, county:"Meru", town:"Nkubu", tags:["sex","Raw BJ"], interests:[31,25,1,2], height:`5'11"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:true, imgNum:170 },
-  { id:"mer171", name:"Ola", age:34, county:"Meru", town:"Maua", tags:["sex","Raw BJ"], interests:[11,29,20,26], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:true, imgNum:171 },
-  { id:"mer172", name:"Yen", age:29, county:"Meru", town:"Timau", tags:["sex","Raw BJ"], interests:[5,10,1,25], height:`5'3"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:false, imgNum:172 },
-  { id:"nye173", name:"Maya", age:20, county:"Nyeri", town:"Nyeri Town", tags:["sex","Raw BJ"], interests:[1,21,13,2], height:`5'5"`, lookingFor:"Intellectual partner", isNew:false, verified:false, bisexual:false, imgNum:173 },
-  { id:"nye174", name:"Lilian", age:24, county:"Nyeri", town:"Karatina", tags:["sex","Raw BJ"], interests:[20,24,6,1], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:174 },
-  { id:"nye175", name:"Linnet", age:28, county:"Nyeri", town:"Othaya", tags:["sex","Raw BJ"], interests:[24,20,25,12], height:`5'7"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:false, bisexual:false, imgNum:175 },
-  { id:"nye176", name:"Evelyn", age:27, county:"Nyeri", town:"Mukurweini", tags:["sex","Raw BJ"], interests:[30,12,5,3], height:`5'8"`, lookingFor:"Fun & Hookup", isNew:false, verified:true, bisexual:false, imgNum:176 },
-  { id:"nye177", name:"Xenia", age:28, county:"Nyeri", town:"Nyeri Town", tags:["sex","Raw BJ"], interests:[7,31,16,12], height:`5'10"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:true, imgNum:177 },
-  { id:"nye178", name:"Melissa", age:22, county:"Nyeri", town:"Karatina", tags:["sex","Raw BJ"], interests:[8,15,6,12], height:`5'5"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:178 },
-  { id:"nye179", name:"Felicia", age:25, county:"Nyeri", town:"Othaya", tags:["sex","Raw BJ"], interests:[7,28,18,0], height:`5'4"`, lookingFor:"Serious relationship", isNew:false, verified:true, bisexual:false, imgNum:179 },
-  { id:"nye180", name:"Dee", age:28, county:"Nyeri", town:"Mukurweini", tags:["sex","Raw BJ"], interests:[16,9,30,8], height:`5'10"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:180 },
-  { id:"kak181", name:"Carolyn", age:23, county:"Kakamega", town:"Kakamega Town", tags:["sex","Raw BJ"], interests:[16,3,18,9], height:`5'4"`, lookingFor:"Calm & present partner", isNew:false, verified:true, bisexual:false, imgNum:181 },
-  { id:"kak182", name:"Pam", age:27, county:"Kakamega", town:"Mumias", tags:["sex","Raw BJ"], interests:[24,25,17,6], height:`5'11"`, lookingFor:"Relationship", isNew:false, verified:true, bisexual:false, imgNum:182 },
-  { id:"kak183", name:"Sara", age:29, county:"Kakamega", town:"Lurambi", tags:["sex","Raw BJ"], interests:[2,17,4,3], height:`5'7"`, lookingFor:"Life partner", isNew:true, verified:false, bisexual:true, imgNum:183 },
-  { id:"kak184", name:"Lea", age:34, county:"Kakamega", town:"Shinyalu", tags:["sex","Raw BJ"], interests:[14,8,1,3], height:`5'4"`, lookingFor:"Long-term partner", isNew:false, verified:true, bisexual:true, imgNum:184 },
-  { id:"kak185", name:"Lydia", age:35, county:"Kakamega", town:"Kakamega Town", tags:["sex","Raw BJ"], interests:[14,5,4,30], height:`5'9"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:185 },
-  { id:"kak186", name:"Caro", age:33, county:"Kakamega", town:"Mumias", tags:["sex","Raw BJ"], interests:[7,19,25,13], height:`5'4"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:186 },
-  { id:"kak187", name:"Ola", age:22, county:"Kakamega", town:"Lurambi", tags:["sex","Raw BJ"], interests:[18,22,9,8], height:`5'8"`, lookingFor:"Serious relationship", isNew:true, verified:true, bisexual:false, imgNum:187 },
-  { id:"kak188", name:"Mary", age:31, county:"Kakamega", town:"Shinyalu", tags:["sex","Raw BJ"], interests:[25,9,8,31], height:`5'6"`, lookingFor:"Calm & present partner", isNew:true, verified:true, bisexual:false, imgNum:188 },
-  { id:"kil189", name:"Nduku", age:24, county:"Kilifi", town:"Kilifi Town", tags:["sex","Raw BJ"], interests:[20,28,26,10], height:`5'4"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:false, bisexual:false, imgNum:189 },
-  { id:"kil190", name:"Leila", age:31, county:"Kilifi", town:"Mtwapa", tags:["sex","Raw BJ"], interests:[2,18,28,20], height:`5'4"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:true, imgNum:190 },
-  { id:"kil191", name:"Rehema", age:27, county:"Kilifi", town:"Malindi", tags:["sex","Raw BJ"], interests:[1,24,9,8], height:`5'3"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:191 },
-  { id:"kil192", name:"Veronica", age:23, county:"Kilifi", town:"Watamu", tags:["sex","Raw BJ"], interests:[15,22,12,21], height:`5'2"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:192 },
-  { id:"kil193", name:"Sabrina", age:28, county:"Kilifi", town:"Kilifi Town", tags:["sex","Raw BJ"], interests:[2,5,19,30], height:`5'5"`, lookingFor:"Long-term partner", isNew:false, verified:true, bisexual:false, imgNum:193 },
-  { id:"kil194", name:"Beatrice", age:26, county:"Kilifi", town:"Mtwapa", tags:["sex","Raw BJ"], interests:[3,12,11,1], height:`5'10"`, lookingFor:"Calm & present partner", isNew:false, verified:true, bisexual:true, imgNum:194 },
-  { id:"kil195", name:"Una", age:28, county:"Kilifi", town:"Malindi", tags:["sex","Raw BJ"], interests:[7,30,4,22], height:`5'4"`, lookingFor:"Long-term partner", isNew:false, verified:true, bisexual:false, imgNum:195 },
-  { id:"kil196", name:"Kay", age:29, county:"Kilifi", town:"Watamu", tags:["sex","Raw BJ"], interests:[16,0,28,14], height:`5'5"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:196 },
-  { id:"kwa197", name:"Tina", age:33, county:"Kwale", town:"Ukunda", tags:["sex","Raw BJ"], interests:[21,31,9,26], height:`5'4"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:197 },
-  { id:"kwa198", name:"Teresa", age:32, county:"Kwale", town:"Kwale Town", tags:["sex","Raw BJ"], interests:[8,17,21,12], height:`5'7"`, lookingFor:"Serious relationship", isNew:true, verified:true, bisexual:false, imgNum:198 },
-  { id:"kwa199", name:"Nina", age:21, county:"Kwale", town:"Msambweni", tags:["sex","Raw BJ"], interests:[29,30,9,17], height:`5'8"`, lookingFor:"Intellectual partner", isNew:false, verified:false, bisexual:false, imgNum:199 },
-  { id:"kwa200", name:"Queen", age:26, county:"Kwale", town:"Lungalunga", tags:["sex","Raw BJ"], interests:[16,25,13,23], height:`5'4"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:false, bisexual:false, imgNum:200 },
-  { id:"kwa201", name:"Carolyn", age:33, county:"Kwale", town:"Diani", tags:["sex","Raw BJ"], interests:[19,28,29,3], height:`5'4"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:201 },
-  { id:"lai202", name:"Lea", age:22, county:"Laikipia", town:"Nanyuki", tags:["sex","Raw BJ"], interests:[3,2,22,14], height:`5'3"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:false, imgNum:202 },
-  { id:"lai203", name:"Cherotich", age:27, county:"Laikipia", town:"Rumuruti", tags:["sex","Raw BJ"], interests:[23,5,31,11], height:`5'4"`, lookingFor:"Long-term partner", isNew:false, verified:false, bisexual:true, imgNum:203 },
-  { id:"lai204", name:"Xara", age:28, county:"Laikipia", town:"Nyahururu", tags:["sex","Raw BJ"], interests:[19,7,25,20], height:`5'9"`, lookingFor:"Serious relationship", isNew:true, verified:false, bisexual:false, imgNum:204 },
-  { id:"lai205", name:"Leila", age:22, county:"Laikipia", town:"Ol Kalou", tags:["sex","Raw BJ"], interests:[25,13,24,7], height:`5'8"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:205 },
-  { id:"lai206", name:"Fiona", age:35, county:"Laikipia", town:"Kinamba", tags:["sex","Raw BJ"], interests:[21,10,18,0], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:206 },
-  { id:"mur207", name:"Lydia", age:20, county:"Muranga", town:"Muranga Town", tags:["sex","Raw BJ"], interests:[25,9,3,4], height:`5'5"`, lookingFor:"Grounded partner", isNew:false, verified:false, bisexual:false, imgNum:207 },
-  { id:"mur208", name:"Linda", age:21, county:"Muranga", town:"Kangema", tags:["sex","Raw BJ"], interests:[27,4,24,0], height:`5'6"`, lookingFor:"Hookup", isNew:true, verified:false, bisexual:false, imgNum:208 },
-  { id:"mur209", name:"Phoebe", age:34, county:"Muranga", town:"Maragua", tags:["sex","Raw BJ"], interests:[13,8,25,1], height:`5'4"`, lookingFor:"Relationship", isNew:false, verified:false, bisexual:false, imgNum:209 },
-  { id:"mur210", name:"Wes", age:25, county:"Muranga", town:"Kandara", tags:["sex","Raw BJ"], interests:[11,13,3,28], height:`5'2"`, lookingFor:"Life partner", isNew:false, verified:false, bisexual:false, imgNum:210 },
-  { id:"mur211", name:"Stella", age:25, county:"Muranga", town:"Kenol", tags:["sex","Raw BJ"], interests:[20,25,6,4], height:`5'5"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:211 },
-  { id:"kaj212", name:"Yen", age:27, county:"Kajiado", town:"Kajiado Town", tags:["sex","Raw BJ"], interests:[13,26,29,19], height:`5'7"`, lookingFor:"Life partner", isNew:true, verified:true, bisexual:false, imgNum:212 },
-  { id:"kaj213", name:"Norah", age:24, county:"Kajiado", town:"Ngong", tags:["sex","Raw BJ"], interests:[13,29,6,11], height:`5'10"`, lookingFor:"Relationship", isNew:true, verified:false, bisexual:false, imgNum:213 },
-  { id:"kaj214", name:"Kemunto", age:24, county:"Kajiado", town:"Ongata Rongai", tags:["sex","Raw BJ"], interests:[13,1,22,6], height:`5'6"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:214 },
-  { id:"kaj215", name:"Hilda", age:32, county:"Kajiado", town:"Kitengela", tags:["sex","Raw BJ"], interests:[12,28,26,1], height:`5'6"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:215 },
-  { id:"kaj216", name:"Kadzo", age:19, county:"Kajiado", town:"Namanga", tags:["sex","Raw BJ"], interests:[27,14,5,2], height:`5'10"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:216 },
-  { id:"kir217", name:"Abigail", age:33, county:"Kirinyaga", town:"Kerugoya", tags:["sex","Raw BJ"], interests:[25,2,11,5], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:217 },
-  { id:"kir218", name:"Lydia", age:20, county:"Kirinyaga", town:"Sagana", tags:["sex","Raw BJ"], interests:[11,16,4,6], height:`5'2"`, lookingFor:"Long-term partner", isNew:false, verified:false, bisexual:false, imgNum:218 },
-  { id:"kir219", name:"Kira", age:34, county:"Kirinyaga", town:"Kutus", tags:["sex","Raw BJ"], interests:[11,5,10,18], height:`5'4"`, lookingFor:"Hookup", isNew:true, verified:true, bisexual:false, imgNum:219 },
-  { id:"kir220", name:"Helen", age:22, county:"Kirinyaga", town:"Wanguru", tags:["sex","Raw BJ"], interests:[16,1,12,24], height:`5'6"`, lookingFor:"Relationship", isNew:true, verified:false, bisexual:false, imgNum:220 },
-  { id:"kir221", name:"Hilda", age:26, county:"Kirinyaga", town:"Kagio", tags:["sex","Raw BJ"], interests:[11,7,14,20], height:`5'9"`, lookingFor:"Adventure partner", isNew:false, verified:false, bisexual:false, imgNum:221 },
-  { id:"sia222", name:"Wairimu", age:19, county:"Siaya", town:"Siaya Town", tags:["sex","Raw BJ"], interests:[15,7,23,21], height:`5'10"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:222 },
-  { id:"sia223", name:"Pia", age:28, county:"Siaya", town:"Bondo", tags:["sex","Raw BJ"], interests:[10,18,9,27], height:`5'9"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:223 },
-  { id:"sia224", name:"Mariamu", age:25, county:"Siaya", town:"Ugunja", tags:["sex","Raw BJ"], interests:[31,10,23,6], height:`5'10"`, lookingFor:"Relationship", isNew:false, verified:true, bisexual:false, imgNum:224 },
-  { id:"sia225", name:"Stella", age:24, county:"Siaya", town:"Rarieda", tags:["sex","Raw BJ"], interests:[25,24,30,18], height:`5'4"`, lookingFor:"Intellectual partner", isNew:true, verified:false, bisexual:false, imgNum:225 },
-  { id:"sia226", name:"Zara", age:19, county:"Siaya", town:"Yala", tags:["sex","Raw BJ"], interests:[1,27,5,21], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:226 },
-  { id:"hom227", name:"Edith", age:27, county:"Homa Bay", town:"Homa Bay Town", tags:["sex","Raw BJ"], interests:[20,15,5,2], height:`5'5"`, lookingFor:"Travel partner & Hookup", isNew:true, verified:false, bisexual:false, imgNum:227 },
-  { id:"hom228", name:"Ora", age:31, county:"Homa Bay", town:"Mbita", tags:["sex","Raw BJ"], interests:[17,8,15,2], height:`5'6"`, lookingFor:"Fun & Hookup", isNew:true, verified:false, bisexual:false, imgNum:228 },
-  { id:"hom229", name:"Jane", age:23, county:"Homa Bay", town:"Oyugis", tags:["sex","Raw BJ"], interests:[19,3,1,5], height:`5'4"`, lookingFor:"Long-term partner", isNew:false, verified:false, bisexual:false, imgNum:229 },
-  { id:"hom230", name:"Leila", age:33, county:"Homa Bay", town:"Ndhiwa", tags:["sex","Raw BJ"], interests:[21,18,12,22], height:`5'7"`, lookingFor:"Adventure partner", isNew:false, verified:true, bisexual:true, imgNum:230 },
-  { id:"hom231", name:"Amina", age:26, county:"Homa Bay", town:"Kendu Bay", tags:["sex","Raw BJ"], interests:[6,22,13,24], height:`5'3"`, lookingFor:"Long-term partner", isNew:false, verified:false, bisexual:false, imgNum:231 },
-  { id:"kis232", name:"Gertrude", age:20, county:"Kisii", town:"Kisii Town", tags:["sex","Raw BJ"], interests:[10,20,28,1], height:`5'10"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:232 },
-  { id:"kis233", name:"Sera", age:23, county:"Kisii", town:"Ogembo", tags:["sex","Raw BJ"], interests:[21,8,19,11], height:`5'11"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:233 },
-  { id:"kis234", name:"Winnie", age:33, county:"Kisii", town:"Keroka", tags:["sex","Raw BJ"], interests:[30,9,3,10], height:`5'4"`, lookingFor:"Travel partner & Hookup", isNew:true, verified:true, bisexual:false, imgNum:234 },
-  { id:"kis235", name:"Janet", age:21, county:"Kisii", town:"Nyamache", tags:["sex","Raw BJ"], interests:[2,19,3,7], height:`5'10"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:235 },
-  { id:"kis236", name:"Vera", age:30, county:"Kisii", town:"Suneka", tags:["sex","Raw BJ"], interests:[27,28,18,4], height:`5'10"`, lookingFor:"Hookup", isNew:false, verified:true, bisexual:false, imgNum:236 },
-  { id:"emb237", name:"Judith", age:30, county:"Embu", town:"Embu Town", tags:["sex","Raw BJ"], interests:[11,16,8,28], height:`5'3"`, lookingFor:"Relationship", isNew:true, verified:true, bisexual:false, imgNum:237 },
-  { id:"emb238", name:"Wes", age:20, county:"Embu", town:"Runyenjes", tags:["sex","Raw BJ"], interests:[8,17,12,26], height:`5'3"`, lookingFor:"Intellectual partner", isNew:false, verified:true, bisexual:false, imgNum:238 },
-  { id:"emb239", name:"Wren", age:23, county:"Embu", town:"Ena", tags:["sex","Raw BJ"], interests:[3,11,16,14], height:`5'7"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:239 },
-  { id:"emb240", name:"Syombi", age:30, county:"Embu", town:"Ishiara", tags:["sex","Raw BJ"], interests:[16,0,9,25], height:`5'7"`, lookingFor:"Hookup", isNew:false, verified:false, bisexual:false, imgNum:240 },
-  { id:"bun241", name:"Sera", age:30, county:"Bungoma", town:"Bungoma Town", tags:["sex","Raw BJ"], interests:[5,16,4,22], height:`5'2"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:241 },
-  { id:"bun242", name:"Ora", age:35, county:"Bungoma", town:"Webuye", tags:["sex","Raw BJ"], interests:[11,9,22,29], height:`5'2"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:false, bisexual:false, imgNum:242 },
-  { id:"bun243", name:"Patricia", age:33, county:"Bungoma", town:"Kimilili", tags:["sex","Raw BJ"], interests:[4,20,24,25], height:`5'5"`, lookingFor:"Something real", isNew:false, verified:false, bisexual:false, imgNum:243 },
-  { id:"bun244", name:"Brenda", age:24, county:"Bungoma", town:"Malakisi", tags:["sex","Raw BJ"], interests:[10,18,15,6], height:`5'3"`, lookingFor:"Calm & present partner", isNew:false, verified:false, bisexual:false, imgNum:244 },
-  { id:"vih245", name:"Rachel", age:35, county:"Vihiga", town:"Vihiga Town", tags:["sex","Raw BJ"], interests:[13,21,16,1], height:`5'8"`, lookingFor:"Adventure partner", isNew:false, verified:false, bisexual:false, imgNum:245 },
-  { id:"vih246", name:"Amani", age:24, county:"Vihiga", town:"Mbale", tags:["sex","Raw BJ"], interests:[11,7,29,0], height:`5'3"`, lookingFor:"Relationship", isNew:true, verified:true, bisexual:false, imgNum:246 },
-  { id:"vih247", name:"Deborah", age:34, county:"Vihiga", town:"Hamisi", tags:["sex","Raw BJ"], interests:[30,17,11,19], height:`5'2"`, lookingFor:"Travel partner & Hookup", isNew:false, verified:true, bisexual:false, imgNum:247 },
-  { id:"vih248", name:"Dama", age:30, county:"Vihiga", town:"Luanda", tags:["sex","Raw BJ"], interests:[25,10,1,24], height:`5'10"`, lookingFor:"Grounded partner", isNew:true, verified:false, bisexual:false, imgNum:248 },
-  { id:"tra249", name:"Julia", age:21, county:"Trans Nzoia", town:"Kitale", tags:["sex","Raw BJ"], interests:[4,16,17,23], height:`5'9"`, lookingFor:"Relationship", isNew:false, verified:false, bisexual:false, imgNum:249 },
-  { id:"tra250", name:"Winnie", age:20, county:"Trans Nzoia", town:"Kiminini", tags:["sex","Raw BJ"], interests:[23,14,13,19], height:`5'6"`, lookingFor:"Life partner", isNew:false, verified:true, bisexual:false, imgNum:250 },
+const ALL_CATS = ["All", ...new Set(JOBS.map(j => j.cat))];
+
+const WHY = [
+  { icon:"🆓", title:"No Experience Required",  body:"We welcome all Kenyans 18+. Employers provide full on-the-job training. Just show up ready to work." },
+  { icon:"📱", title:"Apply from Any Phone",    body:"Register and apply in under 5 minutes from your mobile phone. No computer or email needed." },
+  { icon:"💬", title:"Added to WhatsApp Group", body:"After your application fee you are added to the official WorkLink WhatsApp group and connected with your employer." },
+  { icon:"📍", title:"Work in Your Town",       body:"All jobs are available across Kenya. You choose the town that suits you when you apply." },
+  { icon:"💵", title:"KES 30,000+ Per Month",   body:"Every job listed on WorkLink Kenya pays a minimum of KES 30,000 per month. Fair wages always." },
+  { icon:"🏠", title:"Accommodation Offered",   body:"Many jobs include free or subsidised accommodation. Clearly marked on each listing." },
 ];
 
-const PROFILES = PROFILES_RAW.map(p => ({
-  ...p,
-  interestLabels: p.interests.map(i => ALL_INTERESTS[i] || ALL_INTERESTS[0]),
-}));
-
-const COUNTIES = [
-  "All Counties","Nairobi","Mombasa","Kisumu","Nakuru","Kiambu",
-  "Machakos","Kajiado","Uasin Gishu","Meru","Nyeri","Kakamega",
-  "Kilifi","Kwale","Laikipia","Muranga","Kirinyaga","Siaya","Homa Bay",
-  "Kisii","Embu","Bungoma","Vihiga","Trans Nzoia",
-];
-
-const SMARTPAY_ENDPOINT = "https://starlink-backend-yb3n.onrender.com/api/runPrompt";
-
-function imgSrc(n: number): string {
-  return `/1 (${n}).jpg`;
-}function initials(n: string): string {
-  return n.slice(0,2).toUpperCase();
+/* ─── phone helpers ─── */
+function normalisePhone(raw) {
+  const p = raw.replace(/\D/g,"");
+  if (p.startsWith("07")||p.startsWith("01")) return "254"+p.slice(1);
+  if (p.startsWith("254"))                    return p;
+  return null;
+}
+function isValidPhone(raw) {
+  const p = raw.replace(/\D/g,"");
+  return p.match(/^(07\d{8}|01\d{8}|2547\d{8}|2541\d{8})$/);
 }
 
-const AVATAR_COLORS = [
-  "#2a1a4e","#1a3a5c","#1e3a24","#3a1a2c","#1e2a4e",
-  "#3c2010","#142840","#263010","#361850","#142438",
-];
+const daysLeft = (d: string) => {
+  const diff = new Date(d).getTime() - Date.now();
+  const days = Math.ceil(diff / 86400000);
 
+  return days > 0
+    ? `${days} day${days !== 1 ? "s" : ""} left`
+    : "Closing today";
+};
+
+function useCountUp(target,duration=1600,start=false){
+  const [val,setVal]=useState(0);
+  useEffect(()=>{
+    if(!start)return;
+    let s=0; const step=target/(duration/16);
+    const iv=setInterval(()=>{ s=Math.min(s+step,target); setVal(Math.floor(s)); if(s>=target)clearInterval(iv); },16);
+    return ()=>clearInterval(iv);
+  },[start,target,duration]);
+  return val;
+}
+
+/* ════════════════════════════════════════════════════════
+   CSS
+════════════════════════════════════════════════════════ */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#120d22;color:#f0ecff;font-family:'Plus Jakarta Sans',sans-serif;overflow-x:hidden}
-::-webkit-scrollbar{width:4px}
-::-webkit-scrollbar-thumb{background:#2e2650;border-radius:4px}
-input,select,option{font-family:'Plus Jakarta Sans',sans-serif;color:#f0ecff}
-option{background:#1a1530}
-input::placeholder{color:#6b5fa0}
-.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-@media(min-width:540px){.grid{grid-template-columns:repeat(3,1fr)}}
-@media(min-width:900px){.grid{grid-template-columns:repeat(4,1fr)}}
-@media(min-width:1200px){.grid{grid-template-columns:repeat(5,1fr)}}
-.dash{display:flex;gap:20px;padding:20px;max-width:1400px;margin:0 auto;align-items:flex-start}
-.sidebar{width:240px;flex-shrink:0;position:sticky;top:64px;background:#1a1530;border:1px solid #2e2650;border-radius:20px;padding:18px;height:fit-content}
-@media(max-width:767px){.sidebar{display:none}}
-.maincol{flex:1;min-width:0}
-.card{background:#1a1530;border:1px solid #2e2650;border-radius:16px;overflow:hidden;cursor:pointer;transition:border-color .22s,transform .22s,box-shadow .22s;display:block;width:100%;text-align:left}
-.card:hover{border-color:#7c3aed;transform:translateY(-3px);box-shadow:0 16px 36px -10px rgba(124,58,237,0.4)}
-.pill{border-radius:99px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:0.04em}
-.modal-bg{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.85);display:flex;align-items:flex-end;justify-content:center}
-@media(min-width:600px){.modal-bg{align-items:center;padding:20px}}
-.modal{background:#1a1530;border:1px solid #2e2650;border-radius:24px 24px 0 0;width:100%;max-width:500px;max-height:93vh;overflow-y:auto}
-@media(min-width:600px){.modal{border-radius:22px}}
-.inp{width:100%;background:#211c3a;border:1px solid #2e2650;border-radius:10px;padding:10px 14px;font-size:14px;outline:none;transition:border-color .2s;color:#f0ecff}
-.inp:focus{border-color:#7c3aed}
-.num-inp{width:68px;background:#211c3a;border:1px solid #2e2650;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;text-align:center;color:#f0ecff}
-.num-inp:focus{border-color:#7c3aed}
-.chip{border-radius:99px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid #2e2650;background:#1a1530;color:#8070b0}
-.chip.on{border-color:#7c3aed;background:rgba(124,58,237,0.18);color:#c084fc}
-.tag{border-radius:99px;border:1px solid #2e2650;background:#211c3a;padding:4px 12px;font-size:11px;color:#9080c0}
-.btn-primary{width:100%;padding:14px;border-radius:14px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;transition:opacity .2s,transform .1s}
-.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
-.btn-ghost{width:100%;padding:12px;border-radius:12px;border:1px solid #2e2650;background:#1a1530;color:#8070b0;cursor:pointer;font-size:13px;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;transition:border-color .2s,color .2s;display:flex;align-items:center;justify-content:center;gap:8px}
-.btn-ghost:hover{border-color:#7c3aed;color:#c084fc}
-.pay-card{border-radius:16px;background:rgba(37,99,235,0.1);border:1px solid rgba(99,102,241,0.4);padding:20px;display:flex;flex-direction:column;gap:15px}
-.pay-btn{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#1d4ed8,#4f46e5);color:#fff;font-size:15px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s}
-.pay-btn:hover{opacity:.88}
-.reveal-box{border-radius:16px;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.4);padding:22px;text-align:center}
-.loader{display:inline-block;border:2px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:#fff;color:${SLATE};overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px}
+button,input,select,textarea{font-family:inherit}
+input::placeholder,textarea::placeholder{color:#9CA3AF}
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;height:60px;background:rgba(255,255,255,.93);backdrop-filter:blur(16px);border-bottom:1px solid ${BORDER};display:flex;align-items:center;justify-content:space-between;padding:0 clamp(14px,4vw,48px);transition:box-shadow .2s}
+.nav.scrolled{box-shadow:0 2px 20px rgba(0,0,0,.07)}
+.nav-logo{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.05rem;color:${NAVY};display:flex;align-items:center;gap:7px;cursor:pointer;flex-shrink:0;white-space:nowrap}
+.logo-dot{width:8px;height:8px;background:${BLUE};border-radius:50%;flex-shrink:0}
+.nav-r{display:flex;gap:8px;align-items:center}
+.btn-ghost{padding:7px 16px;border:1.5px solid ${BORDER};border-radius:9px;background:transparent;color:${SLATE};font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-ghost:hover{border-color:${BLUE};color:${BLUE}}
+.btn-blue{padding:8px 20px;border:none;border-radius:9px;background:${BLUE};color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all .18s;white-space:nowrap}
+.btn-blue:hover{background:#1558c0;transform:translateY(-1px)}
+.btn-blue:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;align-items:center;padding:80px clamp(16px,5vw,80px) 56px;background:linear-gradient(155deg,#EEF4FF 0%,#F8F9FC 55%,#E8F5E9 100%);position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-80px;right:-40px;width:380px;height:380px;background:radial-gradient(circle,rgba(27,111,232,.09),transparent 70%);pointer-events:none}
+.hero::after{content:'';position:absolute;bottom:-50px;left:-30px;width:280px;height:280px;background:radial-gradient(circle,rgba(16,185,129,.08),transparent 70%);pointer-events:none}
+.hero-inner{max-width:680px;position:relative;z-index:1}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid ${BORDER};border-radius:99px;padding:5px 14px 5px 7px;font-size:11px;font-weight:700;color:${NAVY};margin-bottom:18px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.hero-badge-i{width:22px;height:22px;background:linear-gradient(135deg,${BLUE},${GREEN});border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px}
+.noexp-badge{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#D1FAE5,#A7F3D0);border:1px solid #6EE7B7;border-radius:9px;padding:6px 14px;font-size:13px;font-weight:700;color:#065F46;margin-bottom:14px}
+.hero h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(1.9rem,4.8vw,3.2rem);color:${NAVY};line-height:1.12;letter-spacing:-.025em;margin-bottom:12px}
+.hero h1 .ac{color:${BLUE}}
+.hero-sub{font-size:clamp(.88rem,1.7vw,1rem);color:#6B7280;line-height:1.82;margin-bottom:8px}
+.hero-note{font-size:13px;color:${GREEN};font-weight:700;margin-bottom:28px;display:flex;align-items:center;gap:6px}
+.hero-btns{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:44px}
+.btn-hp{padding:13px 34px;border-radius:12px;border:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;font-weight:800;background:linear-gradient(135deg,${BLUE},#1558c0);color:#fff;box-shadow:0 8px 24px rgba(27,111,232,.34);cursor:pointer;transition:all .2s}
+.btn-hp:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(27,111,232,.42)}
+.btn-hs{padding:13px 30px;border-radius:12px;border:1.5px solid ${BORDER};background:#fff;color:${NAVY};font-size:.95rem;font-weight:700;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s}
+.btn-hs:hover{border-color:${BLUE};color:${BLUE}}
+.stats-row{display:flex;gap:10px;flex-wrap:wrap}
+.stat-pill{background:#fff;border:1px solid ${BORDER};border-radius:14px;padding:12px 20px;text-align:center;box-shadow:${SHADOW}}
+.stat-n{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.4rem;font-weight:800;color:${NAVY};line-height:1}
+.stat-l{font-size:10px;color:#9CA3AF;font-weight:600;margin-top:3px;text-transform:uppercase;letter-spacing:.05em}
+
+/* SECTION */
+.sec{padding:60px clamp(14px,5vw,72px)}
+.sec-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:${BLUE};margin-bottom:7px}
+.sec-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(1.35rem,2.7vw,1.9rem);color:${NAVY};line-height:1.18;margin-bottom:6px}
+.sec-sub{color:#6B7280;font-size:13px;line-height:1.72;max-width:520px}
+.sec-head{margin-bottom:36px}
+
+/* WHY GRID */
+.why-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.why-card{background:#fff;border:1.5px solid ${BORDER};border-radius:16px;padding:22px 18px;transition:all .2s}
+.why-card:hover{border-color:${BLUE};box-shadow:${SHADOW};transform:translateY(-2px)}
+.why-ic{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#EEF4FF,#DBEAFE);display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:11px}
+.why-t{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px;color:${NAVY};margin-bottom:5px}
+.why-b{font-size:12px;color:#6B7280;line-height:1.62}
+
+/* CTA BANNER */
+.cta-banner{background:linear-gradient(135deg,${NAVY},#1a3a8f);padding:52px clamp(14px,5vw,72px);text-align:center;color:#fff}
+.cta-banner h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(1.4rem,2.8vw,2rem);margin-bottom:10px}
+.cta-banner p{color:rgba(255,255,255,.7);font-size:13px;max-width:480px;margin:0 auto 24px;line-height:1.7}
+
+/* FOOTER */
+footer{background:${NAVY};padding:36px clamp(14px,5vw,72px);text-align:center}
+.fl{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:.95rem;color:#fff;margin-bottom:7px}
+footer p{font-size:11px;color:rgba(255,255,255,.4);line-height:1.6}
+.foot-links{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+.foot-links a{font-size:11px;color:rgba(255,255,255,.4)}
+
+/* DASH NAV */
+.dash-nav{position:sticky;top:60px;z-index:40;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-bottom:1px solid ${BORDER};padding:0 clamp(10px,3.5vw,40px);height:48px;display:flex;align-items:center;gap:4px;overflow-x:auto}
+.dash-nav::-webkit-scrollbar{height:0}
+.dnav-btn{padding:5px 13px;border-radius:7px;border:none;background:transparent;color:#9CA3AF;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.dnav-btn.active{background:${LIGHT};color:${NAVY}}
+
+/* DASH LAYOUT */
+.dw{max-width:1200px;margin:0 auto;padding:20px clamp(10px,3.5vw,40px)}
+
+/* WELCOME */
+.welcome{background:linear-gradient(135deg,${NAVY},#1a3a8f);border-radius:18px;padding:22px 26px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden}
+.welcome::before{content:'';position:absolute;right:-24px;top:-24px;width:140px;height:140px;background:radial-gradient(circle,rgba(255,255,255,.07),transparent 70%);pointer-events:none}
+.whi{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(1rem,2.5vw,1.3rem);margin-bottom:4px}
+.wsub{font-size:12px;opacity:.72;line-height:1.5}
+
+/* DASH STATS */
+.ds-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+@media(max-width:600px){.ds-grid{grid-template-columns:repeat(2,1fr)}}
+.dsc{background:#fff;border:1.5px solid ${BORDER};border-radius:14px;padding:14px}
+.dsc-ico{font-size:20px;margin-bottom:7px}
+.dsc-n{font-family:'Plus Jakarta Sans',sans-serif;font-size:1.5rem;font-weight:800;color:${NAVY};line-height:1}
+.dsc-l{font-size:10px;color:#9CA3AF;margin-top:3px}
+
+/* SEARCH + FILTER */
+.s-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.sbox{flex:1;min-width:180px;display:flex;align-items:center;gap:7px;background:#fff;border:1.5px solid ${BORDER};border-radius:11px;padding:9px 13px}
+.sbox input{flex:1;border:none;outline:none;font-size:13px;color:${NAVY};min-width:0}
+.sico{font-size:15px;color:#9CA3AF;flex-shrink:0}
+.ftabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.ftab{padding:5px 13px;border-radius:99px;border:1.5px solid ${BORDER};background:#fff;color:#9CA3AF;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.ftab.on{background:${BLUE};border-color:${BLUE};color:#fff}
+
+/* JOB GRID */
+.jgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.jgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.jgrid{grid-template-columns:repeat(2,1fr);gap:9px}}
+.jcard{background:#fff;border:1.5px solid ${BORDER};border-radius:16px;padding:14px;display:flex;flex-direction:column;transition:all .2s;position:relative;overflow:hidden}
+.jcard:hover{transform:translateY(-3px);box-shadow:${SHADOW2};border-color:${BLUE}}
+.jcard-fav{position:absolute;top:10px;right:10px;background:none;border:none;cursor:pointer;font-size:16px;opacity:.5;transition:opacity .15s;padding:2px}
+.jcard-fav.on,.jcard-fav:hover{opacity:1}
+.applied-ribbon{background:${GREEN};color:#fff;font-size:9px;font-weight:700;border-radius:0 0 0 7px;padding:3px 7px;position:absolute;top:0;right:0;text-transform:uppercase;letter-spacing:.05em;border-top-right-radius:14px}
+.jc-ico{width:38px;height:38px;background:linear-gradient(135deg,#EEF4FF,#DBEAFE);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:8px;flex-shrink:0}
+.jc-cat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${BLUE};margin-bottom:2px}
+.jc-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:12px;color:${NAVY};line-height:1.3;margin-bottom:5px;padding-right:20px}
+.jc-desc{font-size:11px;color:#6B7280;line-height:1.58;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.jc-meta{display:flex;flex-direction:column;gap:3px;margin-bottom:8px}
+.jcm{font-size:10px;color:#9CA3AF;display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.jcm strong{color:${SLATE};font-weight:600}
+.jc-accom{background:#D1FAE5;border:1px solid #6EE7B7;border-radius:7px;padding:4px 9px;font-size:10px;font-weight:700;color:#065F46;margin-bottom:8px;display:flex;align-items:center;gap:4px}
+.jc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.tag{border-radius:99px;padding:2px 7px;font-size:9px;font-weight:700;border:1px solid}
+.tag-blue{background:#DBEAFE;border-color:#BFDBFE;color:#1E40AF}
+.tag-green{background:#D1FAE5;border-color:#A7F3D0;color:#065F46}
+.tag-purple{background:#EDE9FE;border-color:#DDD6FE;color:#5B21B6}
+.tag-orange{background:#FEF3C7;border-color:#FDE68A;color:#92400E}
+.jc-salary{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:800;color:${GREEN};margin-bottom:7px}
+.jc-vacancies{font-size:10px;font-weight:700;color:${RED};margin-bottom:7px;display:flex;align-items:center;gap:4px}
+.btn-apply{width:100%;padding:9px;border-radius:9px;border:none;background:linear-gradient(135deg,${BLUE},#1558c0);color:#fff;font-size:12px;font-weight:700;cursor:pointer;transition:all .18s}
+.btn-apply:hover{transform:translateY(-1px)}
+.btn-apply:disabled{background:#D1D5DB;cursor:not-allowed;transform:none}
+.btn-apply.applied{background:${GREEN}}
+.btn-apply.applied:hover{transform:none}
+
+/* PROFILE */
+.pgrid{display:grid;grid-template-columns:250px 1fr;gap:18px}
+@media(max-width:660px){.pgrid{grid-template-columns:1fr}}
+.pside{background:#fff;border:1.5px solid ${BORDER};border-radius:16px;overflow:hidden}
+.pside-cov{height:64px;background:linear-gradient(135deg,${BLUE},#1558c0)}
+.pside-body{padding:0 16px 20px;margin-top:-30px}
+.pside-av{width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,${BLUE},${GREEN});border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;margin-bottom:7px}
+.pside-name{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:.9rem;color:${NAVY};margin-bottom:2px}
+.pside-sub{font-size:11px;color:#9CA3AF}
+.pmenu{margin-top:12px;display:flex;flex-direction:column;gap:2px}
+.pmi{padding:8px 10px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;color:#6B7280;display:flex;align-items:center;gap:7px;transition:all .15s}
+.pmi:hover{background:${LIGHT};color:${NAVY}}
+.pmi.active{background:#EEF4FF;color:${BLUE}}
+.pmi.red{color:${RED}}.pmi.red:hover{background:#FEE2E2;color:${RED}}
+.pinfo{background:#fff;border:1.5px solid ${BORDER};border-radius:16px;padding:20px}
+.pinfo-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.9rem;color:${NAVY};margin-bottom:16px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.info-grid{grid-template-columns:1fr}}
+.inf-f .il{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:3px}
+.inf-f .iv{font-size:13px;font-weight:600;color:${NAVY}}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;z-index:200;background:rgba(13,27,62,.65);backdrop-filter:blur(5px);display:flex;align-items:flex-end;justify-content:center;padding:0}
+@media(min-width:580px){.modal-bg{align-items:center;padding:20px}}
+.modal-box{background:#fff;width:100%;max-width:490px;max-height:92vh;overflow-y:auto;border-radius:22px 22px 0 0;box-shadow:0 40px 80px rgba(13,27,62,.3);animation:mIn .28s cubic-bezier(.34,1.56,.64,1)}
+@media(min-width:580px){.modal-box{border-radius:20px}}
+@keyframes mIn{from{transform:scale(.93) translateY(14px);opacity:0}to{transform:none;opacity:1}}
+.mh{padding:18px 20px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.mt{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1rem;color:${NAVY}}
+.ms{font-size:11px;color:#9CA3AF;margin-top:2px}
+.mclose{background:${LIGHT};border:none;cursor:pointer;width:30px;height:30px;border-radius:7px;color:${SLATE};font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
+.mclose:hover{background:${BORDER}}
+.mb{padding:18px 20px}
+.mf{padding:0 20px 20px;display:flex;gap:8px}
+
+/* FORM */
+.fg{margin-bottom:13px}
+.fg .fl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#9CA3AF;margin-bottom:5px;display:block}
+.finp{width:100%;border:1.5px solid ${BORDER};border-radius:9px;padding:10px 12px;font-size:13px;color:${NAVY};outline:none;background:#fff;transition:border-color .18s,box-shadow .18s}
+.finp:focus{border-color:${BLUE};box-shadow:0 0 0 3px rgba(27,111,232,.1)}
+.finp.err{border-color:${RED}}
+.fsel{width:100%;border:1.5px solid ${BORDER};border-radius:9px;padding:10px 12px;font-size:13px;color:${NAVY};outline:none;background:#fff;cursor:pointer;transition:border-color .18s}
+.fsel:focus{border-color:${BLUE}}
+.fsel.err{border-color:${RED}}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ferr{font-size:11px;color:${RED};margin-top:3px}
+.fhint{font-size:10px;color:#9CA3AF;margin-top:3px;line-height:1.5}
+.btn-full{width:100%;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,${BLUE},#1558c0);color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-full:hover:not(:disabled){transform:translateY(-1px)}
+.btn-full:disabled{opacity:.44;cursor:not-allowed;transform:none}
+.btn-out{width:100%;padding:11px;border-radius:10px;border:1.5px solid ${BORDER};background:#fff;color:${SLATE};font-size:13px;font-weight:600;cursor:pointer;transition:all .18s}
+.btn-out:hover{border-color:${BLUE};color:${BLUE}}
+
+/* STEP PROGRESS */
+.spg{margin-bottom:20px}
+.spg-wrap{height:4px;background:#EEF4FF;border-radius:99px;overflow:hidden;margin-bottom:5px}
+.spg-fill{height:100%;background:linear-gradient(90deg,${BLUE},${GREEN});border-radius:99px;transition:width .35s ease}
+.spg-labs{display:flex;justify-content:space-between}
+.spg-labs span{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+
+/* TERMS */
+.terms-scroll{background:${LIGHT};border:1.5px solid ${BORDER};border-radius:10px;padding:13px;max-height:150px;overflow-y:auto;font-size:11px;color:#6B7280;line-height:1.68;margin-bottom:13px}
+.terms-scroll h4{font-size:12px;color:${NAVY};font-weight:700;margin-bottom:4px}
+.check-row{display:flex;align-items:flex-start;gap:8px;cursor:pointer}
+.check-row input[type=checkbox]{margin-top:2px;accent-color:${BLUE};width:14px;height:14px;flex-shrink:0;cursor:pointer}
+.check-row label{font-size:12px;color:${SLATE};cursor:pointer;line-height:1.5}
+.check-row a{color:${BLUE}}
+
+/* APPLY MODAL SPECIFICS */
+.info-box{border-radius:10px;padding:10px 13px;font-size:12px;font-weight:600;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start}
+.info-box.blue{background:#EEF4FF;border:1px solid #BFDBFE;color:#1E40AF}
+.info-box.green{background:#D1FAE5;border:1px solid #6EE7B7;color:#065F46}
+.info-box.yellow{background:#FFFBEB;border:1px solid #FCD34D;color:#92400E}
+.confirm-list{display:flex;flex-direction:column}
+.crow{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid ${BORDER};gap:10px}
+.crow:last-child{border-bottom:none}
+.ck{font-size:11px;color:#9CA3AF;font-weight:600;flex-shrink:0}
+.cv{font-size:12px;color:${NAVY};font-weight:600;text-align:right}
+
+/* WA BOX */
+.wa-box{background:linear-gradient(135deg,#D1FAE5,#A7F3D0);border:1.5px solid #6EE7B7;border-radius:12px;padding:14px;margin-bottom:14px;text-align:center}
+.wa-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:14px;color:#064E3B;margin-bottom:5px}
+.wa-sub{font-size:12px;color:#065F46;line-height:1.62}
+.wa-num{font-size:16px;font-weight:800;color:#064E3B;margin-top:4px;letter-spacing:.04em}
+
+/* PAYMENT */
+.mpesa-logo{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:${GREEN};font-size:13px;letter-spacing:1px}
+.pay-amount{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.4rem;color:${NAVY}}
+.stk-wrap{text-align:center;padding:10px 0}
+.stk-spin{width:38px;height:38px;border:3px solid rgba(27,111,232,.15);border-top-color:${BLUE};border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.stat-box{border-radius:12px;background:#211c3a;border:1px solid #2e2650;padding:12px 8px;text-align:center}
+.stk-t{font-size:14px;font-weight:700;color:${NAVY};margin-bottom:5px}
+.stk-s{font-size:12px;color:#9CA3AF;line-height:1.65}
+.done-wrap{text-align:center;padding:10px 0}
+.done-ico{font-size:44px;margin-bottom:10px}
+.done-t{font-size:17px;font-weight:800;color:${GREEN};font-family:'Plus Jakarta Sans',sans-serif;margin-bottom:5px}
+.done-s{font-size:12px;color:#6B7280;line-height:1.65;max-width:320px;margin:0 auto}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;color:#9CA3AF}
+.empty-ico{font-size:40px;margin-bottom:10px}
+.empty h4{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;color:${NAVY};margin-bottom:5px}
+.empty p{font-size:12px;line-height:1.6}
+
+/* TOAST */
+.toast-wrap{position:fixed;bottom:18px;right:18px;z-index:300;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{background:#111827;color:#fff;border-radius:12px;padding:10px 15px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px;min-width:200px;max-width:300px;box-shadow:0 8px 26px rgba(0,0,0,.22);animation:tIn .28s ease;pointer-events:all}
+.toast.leaving{animation:tOut .28s ease forwards}
+@keyframes tIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+@keyframes tOut{to{transform:translateX(110%);opacity:0}}
+
+/* NO EXP BANNER */
+.noexp-banner{background:linear-gradient(135deg,#D1FAE5,#A7F3D0);border:1.5px solid #6EE7B7;border-radius:18px;padding:24px 28px;display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:24px}
+.noexp-banner h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(1.1rem,2.5vw,1.4rem);color:#064E3B;margin-bottom:6px}
+.noexp-banner p{font-size:13px;color:#065F46;line-height:1.7}
 `;
 
-function PImage({
-  p,
-  size = "card",
-}: {
-  p: any;
-  size?: "card" | string;
-}) {
-  const [err, setErr] = useState(false);
-  const bg = AVATAR_COLORS[p.imgNum % AVATAR_COLORS.length];
-  if (err) return (
-    <div style={{ width:"100%",height:"100%",background:bg,display:"flex",alignItems:"center",justifyContent:"center" }}>
-      <span style={{ fontSize:size==="modal"?"3rem":"1.8rem",fontWeight:800,color:"rgba(255,255,255,0.35)" }}>{initials(p.name)}</span>
-    </div>
-  );
-  return <img src={imgSrc(p.imgNum)} alt={p.name} onError={()=>setErr(true)} style={{ width:"100%",height:"100%",objectFit:"cover",display:"block" }} />;
+/* ════════════════════════════════════════
+   TOAST
+════════════════════════════════════════ */
+let _tid = 0;
+function Toasts({ list, remove }) {
+  return <div className="toast-wrap">{list.map(t=><ToastItem key={t.id} t={t} remove={remove}/>)}</div>;
+}
+function ToastItem({ t, remove }) {
+  const [leaving, setLeaving] = useState(false);
+  useEffect(()=>{
+    const tm=setTimeout(()=>{ setLeaving(true); setTimeout(()=>remove(t.id),290); },3800);
+    return ()=>clearTimeout(tm);
+  },[]);
+  return <div className={`toast${leaving?" leaving":""}`}><span>{t.icon||"ℹ️"}</span><span>{t.msg}</span></div>;
 }
 
-function Card({
-  p,
-  onClick,
-}: {
-  p: any;
-  onClick: () => void;
-}) {
-  return (
-    <button className="card" onClick={onClick}>
-      <div style={{ position:"relative",aspectRatio:"3/4",overflow:"hidden" }}>
-        <PImage p={p} />
-        <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(18,13,34,0.98) 0%,rgba(18,13,34,0.1) 52%,transparent 100%)",pointerEvents:"none" }} />
-        {p.isNew && <span className="pill" style={{ position:"absolute",top:8,left:8,background:"linear-gradient(135deg,#7c3aed,#a855f7)",color:"#fff" }}>NEW</span>}
-        {p.bisexual && <span className="pill" style={{ position:"absolute",top:8,right:8,background:"rgba(236,72,153,0.25)",color:"#fda4af",border:"1px solid rgba(236,72,153,0.45)" }}>BI</span>}
-        {!p.bisexual && p.verified && <span style={{ position:"absolute",top:8,right:8,background:"rgba(37,99,235,0.35)",borderRadius:99,padding:"3px 9px",fontSize:10,color:"#93c5fd",border:"1px solid rgba(99,102,241,0.4)",fontWeight:700 }}>✓</span>}
-        <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"10px 11px 10px" }}>
-          <div style={{ display:"flex",alignItems:"baseline",justifyContent:"space-between" }}>
-            <span style={{ fontWeight:800,fontSize:"0.88rem",color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"72%" }}>{p.name}</span>
-            <span style={{ fontSize:"0.75rem",color:"#d4b8ff",fontWeight:700,flexShrink:0 }}>{p.age}</span>
-          </div>
-          <div style={{ display:"flex",alignItems:"center",gap:3,marginTop:2 }}>
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#7060a0" strokeWidth="2"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-            <span style={{ fontSize:10,color:"#7060a0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis" }}>{p.town}</span>
-          </div>
-        </div>
-      </div>
-      <div style={{ padding:"7px 9px 10px",display:"flex",flexWrap:"wrap",gap:3 }}>
-        {p.interestLabels.slice(0,2).map(t=><span key={t} className="tag" style={{ fontSize:9,padding:"3px 9px" }}>{t}</span>)}
-        {p.interestLabels.length>2 && <span className="tag" style={{ fontSize:9,padding:"3px 9px",color:"#6050a0" }}>+{p.interestLabels.length-2}</span>}
-      </div>
-    </button>
-  );
-}
+/* ════════════════════════════════════════
+   REGISTER WIZARD — 3 steps (no location, no experience)
+════════════════════════════════════════ */
+const REG_STEPS = ["Account","Profile","Terms"];
 
-function PhoneIcon({ size=15 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.8a16 16 0 0 0 6.29 6.29l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-    </svg>
-  );
-}
+function RegisterModal({ onClose, onDone }) {
+  const [step, setStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [f, setF] = useState({ name:"", phone:"", password:"", confirm:"", gender:"", age:"18", education:"", agreed:true });
+const [errs, setErrs] = useState<Record<string, string>>({}); 
+ const set = (k,v) => setF(p=>({...p,[k]:v}));
 
-function PayFlow({ profile }) {
-  const [step, setStep] = useState("idle");
-  const [phone, setPhone] = useState("");
-  const [errMsg, setErrMsg] = useState("");
-  const [dots, setDots] = useState(".");
-  const revealNumber = getNumber(profile.imgNum);
+  const validators = [
+    ()=>{
+      const e: Record<string, string> = {};
+      if(!f.name.trim()) e.name="Enter your full name";
+      const p=f.phone.replace(/\D/g,"");
+      if(!p.match(/^(07\d{8}|01\d{8}|254[71]\d{8})$/)) e.phone="Enter valid number: 07xx/01xx/254xx";
+      if(f.password.length<6) e.password="Minimum 6 characters";
+      if(f.password!==f.confirm) e.confirm="Passwords do not match";
+      return e;
+    },
+    ()=>{
+      const e: Record<string, string> = {};
+      if(!f.gender) e.gender="Select your gender";
+      if(!f.age||+f.age<18||+f.age>70) e.age="Must be 18–70 years old";
+      if(!f.education) e.education="Select your education level";
+      return e;
+    },
+    ()=>{
+      const e: Record<string, string> = {};
+      if(!f.agreed) e.agreed="You must accept the terms to continue";
+      return e;
+    },
+  ];
 
-  useEffect(() => {
-    if (step !== "waiting") return;
-    const t = setInterval(() => setDots(d => d.length >= 3 ? "." : d + "."), 600);
-    return () => clearInterval(t);
-  }, [step]);
-
-  const makeLocalId = () => `2MEET-${profile.id}-${Date.now()}`;
-
-  const initiatePay = async () => {
-    const clean = phone.replace(/\D/g, "");
-    if (!clean.match(/^0[17]\d{8}$/)) {
-      setErrMsg("Enter a valid Safaricom number e.g. 0712 345 678");
-      return;
-    }
-    setErrMsg("");
-    setStep("loading");
-    try {
-      const res = await fetch(SMARTPAY_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          phone: clean,
-          amount: 50,
-          local_id: makeLocalId(),
-          transaction_desc: `2MEET – Unlock ${profile.name}'s contact`,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.status === false) {
-        setErrMsg(data.msg || "Payment failed. Please try again.");
-        setStep("idle");
-        return;
-      }
-
-       setStep("waiting");
-   const checkoutId = data.checkout_request_id;
-
-const checkPayment = setInterval(async () => {
-  const res = await fetch(
-    `${SMARTPAY_ENDPOINT.replace("/api/runPrompt", "")}/api/status/${checkoutId}`
-  );
-
-  const status = await res.json();
-
-  if (
-    status.success &&
-    status.transaction.status === "completed"
-  ) {
-    clearInterval(checkPayment);
-    setStep("done");
-  }
-}, 3000);
-
-    } catch {
-  setErrMsg("Unable to contact the payment server.");
-  setStep("idle");
-}
+  const next = async () => {
+    const e = validators[step]();
+    if(Object.keys(e).length){ setErrs(e); return; }
+    setErrs({});
+    if(step<2){ setStep(s=>s+1); return; }
+    setLoading(true);
+    await new Promise(r=>setTimeout(r,1200));
+    setLoading(false);
+    onDone(f);
   };
 
-  if (step === "done") return (
-    <div className="reveal-box">
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:10 }}>
-        <span style={{ fontSize:18 }}>✅</span>
-        <span style={{ fontSize:11,color:"#6ee7b7",textTransform:"uppercase",letterSpacing:"0.08em",fontWeight:700 }}>Payment confirmed</span>
-      </div>
-      <p style={{ fontSize:13,color:"#a8d5c2",marginBottom:8 }}>You've unlocked {profile.name}'s contact</p>
-      <div style={{ fontWeight:800,fontSize:"1.8rem",color:"#fff",letterSpacing:"0.1em",marginBottom:6,padding:"10px 0" }}>
-        {revealNumber.replace(/(\d{4})(\d{3})(\d{3})/, "$1 $2 $3")}
-      </div>
-      <div style={{ display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap",marginTop:4 }}>
-        <a href={`tel:${revealNumber}`} style={{ display:"inline-flex",alignItems:"center",gap:7,borderRadius:99,background:"rgba(16,185,129,0.2)",border:"1px solid rgba(16,185,129,0.45)",color:"#6ee7b7",fontSize:13,fontWeight:700,padding:"10px 20px",textDecoration:"none" }}>
-          <PhoneIcon /> Call now
-        </a>
-        <a href={`https://wa.me/254${revealNumber.replace(/\D/g,"").slice(1)}`} target="_blank" rel="noreferrer" style={{ display:"inline-flex",alignItems:"center",gap:7,borderRadius:99,background:"rgba(37,211,102,0.15)",border:"1px solid rgba(37,211,102,0.4)",color:"#4ade80",fontSize:13,fontWeight:700,padding:"10px 20px",textDecoration:"none" }}>
-          WhatsApp
-        </a>
-      </div>
-    </div>
-  );
+  const inp = (k) => ({
+    className:`finp${errs[k]?" err":""}`,
+    value:f[k],
+    onChange:(e)=>{ set(k,e.target.value); if(errs[k]) setErrs(p=>({...p,[k]:""})); },
+  });
+  const sel = (k) => ({
+    className:`fsel${errs[k]?" err":""}`,
+    value:f[k],
+    onChange:(e)=>{ set(k,e.target.value); if(errs[k]) setErrs(p=>({...p,[k]:""})); },
+  });
 
-  if (step === "waiting") return (
-    <div className="pay-card" style={{ alignItems:"center",textAlign:"center" }}>
-      <div className="loader" style={{ width:26,height:26 }} />
-      <div>
-        <p style={{ fontSize:15,fontWeight:700,color:"#fff",marginBottom:6 }}>Check your phone{dots}</p>
-        <p style={{ fontSize:13,color:"#8070b0",lineHeight:1.7 }}>M-Pesa STK push sent to <strong style={{ color:"#93c5fd" }}>{phone}</strong>.<br />Enter your M-Pesa PIN to complete.</p>
-      </div>
-
-    </div>
-  );
-
-  if (step === "loading") return (
-    <div className="pay-card" style={{ alignItems:"center",textAlign:"center",padding:"26px" }}>
-      <div className="loader" style={{ width:22,height:22 }} />
-      <p style={{ fontSize:13,color:"#93c5fd",marginTop:8 }}>Sending STK push{dots}</p>
-    </div>
-  );
-
-  return (
-    <div className="pay-card">
-      <div style={{ display:"flex",alignItems:"center",gap:12 }}>
-        <div style={{ width:48,height:48,borderRadius:12,overflow:"hidden",flexShrink:0,border:"1px solid #2e2650" }}>
-          <PImage p={profile} />
-        </div>
-        <div>
-          <div style={{ fontSize:11,color:"#93c5fd",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3,fontWeight:600 }}>Unlock {profile.name}'s contact</div>
-          <div style={{ fontWeight:800,fontSize:"1.3rem",color:"#fff" }}>KES 50</div>
-          <div style={{ fontSize:10,color:"#6050a0",marginTop:2 }}>One-time · Instant access</div>
-        </div>
-      </div>
-      <div>
-        <label style={{ fontSize:11,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.07em",display:"block",marginBottom:7,fontWeight:600 }}>Your Safaricom number</label>
-        <input
-          className="inp"
-          placeholder="0712 345 678"
-          value={phone}
-          onChange={e=>{setErrMsg("");setPhone(e.target.value.replace(/\D/g,"").slice(0,10));}}
-          inputMode="numeric"
-        />
-        {errMsg && <p style={{ fontSize:12,color:"#f87171",marginTop:6 }}>{errMsg}</p>}
-      </div>
-      <button className="pay-btn" onClick={initiatePay}>
-        <PhoneIcon /> Pay KES 50 via M-Pesa
-      </button>
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:5 }}>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6050a0" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <p style={{ fontSize:10,color:"#6050a0" }}>Secure · M-Pesa STK push · Enter PIN on your phone</p>
-      </div>
-    </div>
-  );
-}
-
-function Modal({ p, onClose }) {
-  const [showPay, setShowPay] = useState(false);
-
-  useEffect(() => {
-    const h = e => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", h);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", h);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
-
-  const allInterests = [...new Set([...p.tags, ...p.interestLabels])];
+  const pct = ((step+1)/3)*100;
 
   return (
     <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={e=>e.stopPropagation()}>
-
-        {/* Hero photo */}
-        <div style={{ position:"relative",height:320,overflow:"hidden",borderRadius:"24px 24px 0 0" }}>
-          <PImage p={p} size="modal" />
-          <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(26,21,48,1) 0%,rgba(26,21,48,0.2) 55%,transparent 100%)",pointerEvents:"none" }} />
-
-          {/* Close button */}
-          <button onClick={onClose} style={{ position:"absolute",top:14,right:14,width:34,height:34,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.18)",background:"rgba(18,13,34,0.75)",color:"#f0ecff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(6px)" }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
-          </button>
-
-          {/* Badges */}
-          <div style={{ position:"absolute",top:14,left:14,display:"flex",gap:6 }}>
-            {p.isNew && <span className="pill" style={{ background:"linear-gradient(135deg,#7c3aed,#a855f7)",color:"#fff" }}>NEW</span>}
-            {p.bisexual && <span className="pill" style={{ background:"rgba(236,72,153,0.28)",color:"#fda4af",border:"1px solid rgba(236,72,153,0.5)" }}>Bisexual</span>}
-            {p.verified && <span className="pill" style={{ background:"rgba(37,99,235,0.3)",color:"#93c5fd",border:"1px solid rgba(99,102,241,0.45)" }}>✓ Verified</span>}
+      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+        <div className="mh">
+          <div>
+            <div className="mt">Create your WorkLink profile</div>
+            <div className="ms">{REG_STEPS[step]} — Step {step+1} of 3</div>
           </div>
-
-          {/* Name block */}
-          <div style={{ position:"absolute",bottom:0,left:0,right:0,padding:"0 20px 20px" }}>
-            <h2 style={{ fontWeight:800,fontSize:"1.7rem",color:"#fff",lineHeight:1,marginBottom:6 }}>
-              {p.name}, <span style={{ color:"#c084fc" }}>{p.age}</span>
-            </h2>
-            <div style={{ display:"flex",alignItems:"center",gap:5 }}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#8070b0" strokeWidth="2"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-              <span style={{ fontSize:13,color:"#b0a0d8",fontWeight:500 }}>{p.town}, {p.county}</span>
+          <button className="mclose" onClick={onClose}>×</button>
+        </div>
+        <div className="mb">
+          <div className="spg">
+            <div className="spg-wrap"><div className="spg-fill" style={{width:`${pct}%`}}/></div>
+            <div className="spg-labs">
+              {REG_STEPS.map((l,i)=><span key={l} style={{color:i<=step?BLUE:"#D1D5DB"}}>{l}</span>)}
             </div>
           </div>
+
+          {step===0 && <>
+            <div className="fg">
+              <label className="fl">Full Name</label>
+              <input {...inp("name")} type="text" placeholder="e.g. Jane Wanjiku" autoComplete="name"/>
+              {errs.name && <div className="ferr">{errs.name}</div>}
+            </div>
+            <div className="fg">
+              <label className="fl">Phone Number</label>
+              <input
+                className={`finp${errs.phone?" err":""}`}
+                type="tel" inputMode="numeric"
+                placeholder="07XX XXX XXX  or  01XX  or  254XXXXXXXXX"
+                value={f.phone}
+                onChange={e=>{ set("phone",e.target.value.replace(/[^\d]/g,"").slice(0,12)); if(errs.phone) setErrs(p=>({...p,phone:""})); }}
+              />
+              {errs.phone && <div className="ferr">{errs.phone}</div>}
+              <div className="fhint">Accepts 07xx, 01xx (Safaricom/Airtel) or 254xxxxxxxxx</div>
+            </div>
+            <div className="fg">
+              <label className="fl">Password</label>
+              <input {...inp("password")} type="password" placeholder="Minimum 6 characters" autoComplete="new-password"/>
+              {errs.password && <div className="ferr">{errs.password}</div>}
+            </div>
+            <div className="fg">
+              <label className="fl">Confirm Password</label>
+              <input {...inp("confirm")} type="password" placeholder="Repeat your password" autoComplete="new-password"/>
+              {errs.confirm && <div className="ferr">{errs.confirm}</div>}
+            </div>
+          </>}
+
+          {step===1 && <>
+            <div className="info-box green" style={{marginBottom:14}}>
+              <span>✅</span>
+              <span>No experience required — all Kenyans 18+ are welcome to apply!</span>
+            </div>
+            <div className="frow">
+              <div className="fg">
+                <label className="fl">Gender</label>
+                <select {...sel("gender")}>
+                  <option value="">Select…</option>
+                  <option>Male</option><option>Female</option><option>Prefer not to say</option>
+                </select>
+                {errs.gender && <div className="ferr">{errs.gender}</div>}
+              </div>
+              <div className="fg">
+                <label className="fl">Age</label>
+                <input className={`finp${errs.age?" err":""}`} type="number" min={18} max={70} placeholder="e.g. 25" value={f.age} onChange={e=>{ set("age",e.target.value); if(errs.age) setErrs(p=>({...p,age:""})); }}/>
+                {errs.age && <div className="ferr">{errs.age}</div>}
+              </div>
+            </div>
+            <div className="fg">
+              <label className="fl">Highest Education Level</label>
+              <select {...sel("education")}>
+                <option value="">Select…</option>
+                <option>No formal education</option>
+                <option>Primary (KCPE)</option>
+                <option>Secondary (KCSE)</option>
+                <option>Certificate / Diploma</option>
+                <option>Degree or Higher</option>
+              </select>
+              {errs.education && <div className="ferr">{errs.education}</div>}
+            </div>
+          </>}
+
+          {step===2 && <>
+            <div className="terms-scroll">
+              <h4>WorkLink Kenya — Terms & Conditions</h4>
+              <p><strong>1. Eligibility.</strong> You must be 18 years or older. All information must be accurate.</p><br/>
+              <p><strong>2. Application Fee.</strong> A one-time CONNECT Fee of <strong>KES {FEE}</strong> is charged per job application via M-Pesa. This connects you with the employer and adds you to the official WorkLink WhatsApp group.</p><br/>
+              <p><strong>3. No Experience Required.</strong> Employers listed on WorkLink provide on-the-job training. You do not need prior experience.</p><br/>
+              <p><strong>4. Accommodation.</strong> Some jobs include free or subsidised accommodation as stated on the listing. This is confirmed by the employer on contact.</p><br/>
+              <p><strong>5. Start Date.</strong> All current vacancies start 10 July 2026. You must be available to report to work on that date.</p><br/>
+              <p><strong>6. WhatsApp Group.</strong> After payment confirmation you will be added to the WorkLink WhatsApp group where employers contact workers directly.</p><br/>
+              <p><strong>7. Privacy.</strong> Your data is handled under the Kenya Data Protection Act 2019. We never sell your data.</p>
+            </div>
+            <div className="check-row" style={{marginBottom:6}}>
+              <input type="checkbox" id="agreed" checked={f.agreed} onChange={e=>{ set("agreed",e.target.checked); if(errs.agreed) setErrs(p=>({...p,agreed:""})); }}/>
+              <label htmlFor="agreed">I have read and agree to the <a href="#" onClick={e=>e.preventDefault()}>Terms & Conditions</a> and <a href="#" onClick={e=>e.preventDefault()}>Privacy Policy</a>. I am 18+ and available to start 10 July 2026.</label>
+            </div>
+            {errs.agreed && <div className="ferr" style={{marginTop:4}}>{errs.agreed}</div>}
+          </>}
+        </div>
+        <div className="mf">
+          {step>0 && <button className="btn-out" onClick={()=>{ setStep(s=>s-1); setErrs({}); }} style={{flex:1}}>← Back</button>}
+          <button className="btn-full" onClick={next} disabled={loading} style={{flex:2}}>
+            {loading
+              ? <><span className="stk-spin" style={{width:15,height:15,borderWidth:2}}/> Creating account…</>
+              : step===2 ? "Create Account →" : "Continue →"
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════
+   APPLY MODAL — Step 0: form (town + WA)
+                 Step 1: summary
+                 Step 2: M-Pesa payment
+                 Step 3: success
+════════════════════════════════════════ */
+function ApplyModal({ job, userPhone, onClose, onApplied, addToast }) {
+  const [step, setStep] = useState(0);
+  const [f, setF] = useState({ town:"", waPhone: userPhone || "", notes:"" });
+  const [errs, setErrs] = useState<Record<string, string>>({});
+  // Payment state
+  const [payPhone, setPayPhone] = useState(userPhone || "");
+  const [payStep, setPayStep] = useState("idle"); // idle|loading|stk|timeout|done
+  const [dots, setDots] = useState(".");
+  const [payErr, setPayErr] = useState("");
+  const pollRef = useRef(null);
+  const timeoutRef = useRef(null);
+
+  useEffect(()=>{
+    if(payStep!=="stk"&&payStep!=="loading") return;
+    const t=setInterval(()=>setDots(d=>d.length>=3?".":d+"."),600);
+    return ()=>clearInterval(t);
+  },[payStep]);
+
+  useEffect(()=>()=>{ clearInterval(pollRef.current); clearTimeout(timeoutRef.current); },[]);
+
+  const setField=(k,v)=>setF(p=>({...p,[k]:v}));
+
+  const validateForm=()=>{
+  const e: Record<string, string> = {};
+    if(!f.town) e.town="Select the town you want to work in";
+    if(!isValidPhone(f.waPhone)) e.waPhone="Enter valid WhatsApp number (07xx / 01xx / 254xx)";
+    return e;
+  };
+
+  const goConfirm=()=>{
+    const e=validateForm();
+    if(Object.keys(e).length){ setErrs(e); return; }
+    setErrs({}); setStep(1);
+  };
+
+  const startPay=async()=>{
+    if(!isValidPhone(payPhone)){ setPayErr("Enter a valid M-Pesa number: 07xx, 01xx, or 254xxxxxxxxx"); return; }
+    const norm=normalisePhone(payPhone);
+    setPayErr(""); setPayStep("loading");
+    try {
+      const res=await fetch(`${SMARTPAY_ENDPOINT}/api/runPrompt`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          phone:norm,
+          amount:FEE,
+          local_id:`WL-${job.id}-${Date.now()}`,
+          transaction_desc:`WorkLink Kenya Application Fee KES ${FEE}`,
+        }),
+      });
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok||data.status===false){ setPayErr(data.msg||"STK push failed. Please try again."); setPayStep("idle"); return; }
+
+      const cid=data.checkout_request_id||data.checkoutRequestId||null;
+      setPayStep("stk");
+
+      if(cid){
+        timeoutRef.current=setTimeout(()=>{ clearInterval(pollRef.current); setPayStep("timeout"); },55000);
+        pollRef.current=setInterval(async()=>{
+          try{
+            const r=await fetch(`${SMARTPAY_ENDPOINT}/api/status/${cid}`);
+            if(!r.ok) return;
+            const d=await r.json();
+            if(d.status==="completed"||d.success===true||d.ResultCode===0){
+              clearInterval(pollRef.current); clearTimeout(timeoutRef.current); setPayStep("done");
+            } else if(d.status==="failed"||(d.ResultCode!==undefined&&d.ResultCode!==0)){
+              clearInterval(pollRef.current); clearTimeout(timeoutRef.current);
+              setPayErr(d.ResultDesc||d.msg||"Payment was not completed. Please try again."); setPayStep("idle");
+            }
+          } catch { /* keep polling */ }
+        },4000);
+      } else {
+        timeoutRef.current=setTimeout(()=>setPayStep("timeout"),80000);
+      }
+    } catch { setPayErr("Network error. Check your connection and try again."); setPayStep("idle"); }
+  };
+
+  const confirmManualPay=()=>setPayStep("done");
+
+  const handleDone=()=>{ onApplied(job); };
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+        <div className="mh">
+          <div>
+            <div className="mt">
+              {step===0?"Apply for Job":step===1?"Review & Confirm":"Pay Application Fee — KES "+FEE}
+            </div>
+            <div className="ms">{job.title}</div>
+          </div>
+          <button className="mclose" onClick={onClose}>×</button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding:"20px 20px 28px",display:"flex",flexDirection:"column",gap:18 }}>
+        <div className="mb">
 
-          {/* Stats row */}
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8 }}>
-            <div className="stat-box">
-              <div style={{ fontSize:10,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5,fontWeight:600 }}>Height</div>
-              <div style={{ fontSize:14,fontWeight:700,color:"#f0ecff" }}>{p.height}</div>
+          {/* ── STEP 0: choose town + WhatsApp ── */}
+          {step===0 && <>
+            <div className="info-box blue" style={{marginBottom:14}}>
+              <span>📋</span>
+              <div>Choose your preferred town and enter your WhatsApp number. After payment you will be added to the <strong>WorkLink WhatsApp group</strong> where the employer will contact you directly.</div>
             </div>
-            <div className="stat-box">
-              <div style={{ fontSize:10,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5,fontWeight:600 }}>County</div>
-              <div style={{ fontSize:13,fontWeight:700,color:"#f0ecff",lineHeight:1.3 }}>{p.county}</div>
-            </div>
-            <div className="stat-box">
-              <div style={{ fontSize:10,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5,fontWeight:600 }}>Looking for</div>
-              <div style={{ fontSize:11,fontWeight:700,color:"#f0ecff",lineHeight:1.3 }}>{p.lookingFor}</div>
-            </div>
-          </div>
 
-          {/* Looking for highlight */}
-          <div style={{ borderRadius:14,background:"rgba(124,58,237,0.12)",border:"1px solid rgba(124,58,237,0.35)",padding:"14px 16px",display:"flex",alignItems:"center",gap:12 }}>
-            <div style={{ width:36,height:36,borderRadius:10,background:"rgba(124,58,237,0.22)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c084fc" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <div className="fg">
+              <label className="fl">Which town do you want to work in?</label>
+              <select
+                className={`fsel${errs.town?" err":""}`}
+                value={f.town}
+                onChange={e=>{ setField("town",e.target.value); if(errs.town) setErrs(p=>({...p,town:""})); }}
+              >
+                <option value="">Select town / area…</option>
+                {ALL_TOWNS.map(t=><option key={t}>{t}</option>)}
+              </select>
+              {errs.town && <div className="ferr">{errs.town}</div>}
             </div>
-            <div>
-              <div style={{ fontSize:10,color:"#8060b0",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3,fontWeight:600 }}>She's looking for</div>
-              <div style={{ fontSize:14,fontWeight:700,color:"#c084fc" }}>{p.lookingFor}</div>
-            </div>
-          </div>
 
-          {/* Interests */}
-          <div>
-            <div style={{ fontSize:11,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10,fontWeight:700 }}>Interests & Vibes</div>
-            <div style={{ display:"flex",flexWrap:"wrap",gap:6 }}>
-              {allInterests.map(t => (
-                <span key={t} className="tag" style={{ fontSize:12,padding:"5px 14px" }}>{t}</span>
+            <div className="fg">
+              <label className="fl">Your WhatsApp Number</label>
+              <input
+                className={`finp${errs.waPhone?" err":""}`}
+                type="tel" inputMode="numeric"
+                placeholder="07XX XXX XXX  or  01XX  or  254XXXXXXXXX"
+                value={f.waPhone}
+                onChange={e=>{ setField("waPhone",e.target.value.replace(/[^\d]/g,"").slice(0,12)); if(errs.waPhone) setErrs(p=>({...p,waPhone:""})); }}
+              />
+              {errs.waPhone && <div className="ferr">{errs.waPhone}</div>}
+              <div className="fhint">You will be added to the WorkLink WhatsApp group on this number immediately after payment.</div>
+            </div>
+
+            {job.accommodation && (
+              <div className="info-box green" style={{marginBottom:14}}>
+                <span>🏠</span>
+                <div><strong>Accommodation available</strong> — {job.accommodationNote}</div>
+              </div>
+            )}
+
+           
+          </>}
+
+          {/* ── STEP 1: summary ── */}
+          {step===1 && <>
+            <div className="wa-box">
+              <div className="wa-title"> You will be added to our WhatsApp group!</div>
+              <div className="wa-sub">
+                After payment confirmation, your number <strong>{f.waPhone}</strong> will be added to the <strong>WorkLink Kenya Jobs WhatsApp group</strong> where employers contact workers directly. Report to work on <strong>10 July 2026</strong> once contacted.
+              </div>
+            </div>
+
+            <div className="confirm-list">
+              {[
+                ["Job Title", job.title],
+                ["Preferred Town", f.town],
+                ["Salary", job.salary],
+                ["Employment Type", job.type],
+                ["Start Date", job.start],
+                ["Vacancies Available", `${job.vacancies} positions`],
+                ["Your WhatsApp", f.waPhone],
+                ...(job.accommodation ? [["Accommodation", "✅ Available"]] : []),
+              ].map(([k,v])=>(
+                <div key={k} className="crow">
+                  <span className="ck">{k}</span>
+                  <span className="cv">{v}</span>
+                </div>
               ))}
             </div>
-          </div>
 
-          <div style={{ height:1,background:"#2e2650" }} />
-
-          {/* Unlock CTA */}
-          {!showPay ? (
-            <div>
-              <p style={{ fontSize:13,color:"#8070b0",textAlign:"center",marginBottom:12,lineHeight:1.6 }}>
-                Interested in connecting with {p.name}?<br />Unlock her number for just <strong style={{ color:"#f0ecff" }}>KES 50</strong>.
-              </p>
-              <button
-                className="btn-primary"
-                style={{ background:"linear-gradient(135deg,#1d4ed8,#4f46e5)",color:"#fff" }}
-                onClick={()=>setShowPay(true)}
-              >
-                <span style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:9 }}>
-                  <PhoneIcon size={17} /> Get {p.name}'s Number — KES 50
-                </span>
-              </button>
-            </div>
-          ) : (
-            <PayFlow profile={p} />
-          )}
-
-          <button className="btn-ghost">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            Save to favourites
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FilterPanel({ f, onChange, onClose }) {
-  const [loc, setLoc] = useState(f);
-  const set = patch => { const n = {...loc,...patch}; setLoc(n); onChange(n); };
-  const toggleInt = i => set({ interests: loc.interests.includes(i) ? loc.interests.filter(x=>x!==i) : [...loc.interests,i] });
-  const reset = () => { const d={county:"All Counties",ageMin:18,ageMax:45,bisexualOnly:false,interests:[]}; setLoc(d); onChange(d); };
-
-  return (
-    <div style={{ display:"flex",flexDirection:"column",gap:18 }}>
-      <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between" }}>
-        <span style={{ fontWeight:800,fontSize:"0.95rem",color:"#f0ecff" }}>Filters</span>
-        <div style={{ display:"flex",gap:10,alignItems:"center" }}>
-          <button onClick={reset} style={{ fontSize:11,color:"#8070b0",background:"none",border:"none",cursor:"pointer",textDecoration:"underline" }}>Reset all</button>
-          {onClose && <button onClick={onClose} style={{ color:"#8070b0",background:"none",border:"none",cursor:"pointer" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>}
-        </div>
-      </div>
-      <div>
-        <div style={{ fontSize:10,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:7,fontWeight:700 }}>County</div>
-        <select value={loc.county} onChange={e=>set({county:e.target.value})} className="inp" style={{ padding:"9px 13px",background:"#211c3a" }}>
-          {COUNTIES.map(c=><option key={c}>{c}</option>)}
-        </select>
-      </div>
-      <div>
-        <div style={{ fontSize:10,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:7,fontWeight:700 }}>Age range</div>
-        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
-          <input type="number" min={18} max={60} value={loc.ageMin} onChange={e=>set({ageMin:Math.min(+e.target.value,loc.ageMax)})} className="num-inp" />
-          <span style={{ color:"#6050a0",fontSize:14 }}>–</span>
-          <input type="number" min={18} max={60} value={loc.ageMax} onChange={e=>set({ageMax:Math.max(+e.target.value,loc.ageMin)})} className="num-inp" />
-          <span style={{ fontSize:11,color:"#6050a0" }}>yrs</span>
-        </div>
-      </div>
-      <div style={{ display:"flex",alignItems:"center",gap:10 }}>
-        <button
-          onClick={()=>set({bisexualOnly:!loc.bisexualOnly})}
-          style={{ width:40,height:22,borderRadius:99,border:"none",cursor:"pointer",background:loc.bisexualOnly?"#9333ea":"#2e2650",transition:"background .2s",position:"relative",flexShrink:0 }}
-        >
-          <span style={{ position:"absolute",top:3,left:loc.bisexualOnly?19:3,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left .2s" }} />
-        </button>
-        <span style={{ fontSize:12,color:"#a090d0" }}>Bisexual women only</span>
-      </div>
-      <div>
-        <div style={{ fontSize:10,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8,fontWeight:700 }}>Interests</div>
-        <div style={{ display:"flex",flexWrap:"wrap",gap:4 }}>
-          {ALL_INTERESTS.map(i => (
-            <button key={i} onClick={()=>toggleInt(i)} className={`chip${loc.interests.includes(i)?" on":""}`}>{i}</button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Decorative Sign In (non-functional, no errors) ───────────────────────────
-function AuthOverlay({ onClose }) {
-  return (
-    <div style={{ position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"center",justifyContent:"center",padding:20 }} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{ background:"#1a1530",border:"1px solid #2e2650",borderRadius:24,padding:"30px 28px",width:"100%",maxWidth:390,display:"flex",flexDirection:"column",gap:18 }}>
-        <div style={{ textAlign:"center" }}>
-          <div style={{ fontWeight:800,fontSize:"1.9rem",letterSpacing:"-0.5px",marginBottom:6 }}>
-            <span style={{ color:"#c084fc" }}>2</span><span style={{ color:"#f0ecff" }}>MEET</span><span style={{ color:"#7c3aed" }}>.</span>
-          </div>
-          <p style={{ fontSize:13,color:"#8070b0",lineHeight:1.6 }}>Sign in to save favourites and get notified of new profiles near you.</p>
-        </div>
-        <div>
-          <label style={{ fontSize:10,color:"#6050a0",display:"block",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.07em",fontWeight:700 }}>Email address</label>
-          <input placeholder="you@email.com" className="inp" type="email" readOnly style={{ cursor:"default" }} />
-        </div>
-        <div>
-          <label style={{ fontSize:10,color:"#6050a0",display:"block",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.07em",fontWeight:700 }}>Password</label>
-          <input placeholder="••••••••" className="inp" type="password" readOnly style={{ cursor:"default" }} />
-        </div>
-        <button
-          className="btn-primary"
-          style={{ background:"linear-gradient(135deg,#7c3aed,#a855f7)",color:"#fff" }}
-          onClick={onClose}
-        >
-          Sign in
-        </button>
-        <p style={{ textAlign:"center",fontSize:12,color:"#8070b0" }}>
-          New here?{" "}
-          <span style={{ color:"#c084fc",fontWeight:700,cursor:"pointer" }}>Join free</span>
-        </p>
-        <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",color:"#6050a0",fontSize:11,textDecoration:"underline",alignSelf:"center" }}>Skip for now</button>
-      </div>
-    </div>
-  );
-}
-
-function Landing({ onEnter }) {
-  const shots = [1,5,11,16,22,28,33,40,48,55,63,70,78,85,91,100,110,120,130,140];
-  return (
-    <div style={{ background:"#120d22",minHeight:"100vh" }}>
-      <nav style={{ padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:40,background:"rgba(18,13,34,0.97)",borderBottom:"1px solid #2e2650",backdropFilter:"blur(14px)" }}>
-        <span style={{ fontWeight:800,fontSize:"1.4rem",letterSpacing:"-0.5px" }}>
-          <span style={{ color:"#c084fc" }}>2</span><span style={{ color:"#f0ecff" }}>MEET</span><span style={{ color:"#7c3aed" }}>.</span>
-        </span>
-        <button onClick={onEnter} style={{ padding:"9px 22px",borderRadius:99,background:"linear-gradient(135deg,#7c3aed,#a855f7)",border:"none",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer" }}>Browse Profiles</button>
-      </nav>
-      <section style={{ padding:"72px 24px 48px",textAlign:"center",maxWidth:640,margin:"0 auto" }}>
-        <div style={{ display:"inline-block",borderRadius:99,background:"rgba(124,58,237,0.16)",border:"1px solid rgba(124,58,237,0.38)",padding:"5px 16px",fontSize:11,color:"#c084fc",marginBottom:22,fontWeight:700,letterSpacing:"0.05em" }}>
-          🇰🇪 Kenya's dating platform
-        </div>
-        <h1 style={{ fontWeight:800,fontSize:"clamp(2rem,6vw,3.4rem)",lineHeight:1.08,color:"#f0ecff",marginBottom:16 }}>
-          Real Kenyan women,<br /><span style={{ color:"#c084fc" }}>real connections</span>
-        </h1>
-        <p style={{ fontSize:"0.96rem",color:"#8070b0",lineHeight:1.85,maxWidth:440,margin:"0 auto 38px" }}>
-          250 verified women across 24 counties. No bots, no fake profiles.
-        </p>
-        <button
-          onClick={onEnter}
-          style={{ padding:"16px 56px",borderRadius:24,background:"#ef4444",border:"2px solid #dc2626",color:"#fff",fontSize:"1rem",fontWeight:800,cursor:"pointer",boxShadow:"0 8px 32px rgba(239,68,68,0.35)" }}
-          onMouseEnter={e=>e.currentTarget.style.background="#dc2626"}
-          onMouseLeave={e=>e.currentTarget.style.background="#ef4444"}
-        >
-          I am 18+ — Enter
-        </button>
-        <p style={{ fontSize:10,color:"#6050a0",marginTop:10 }}>By entering you confirm you are 18 years or older</p>
-      </section>
-      <section style={{ padding:"0 18px 56px",maxWidth:1000,margin:"0 auto" }}>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6 }}>
-          {shots.map(n=>(
-            <div key={n} style={{ borderRadius:14,overflow:"hidden",aspectRatio:"3/4",background:"#1a1530",border:"1px solid #2e2650",position:"relative" }}>
-              <img src={imgSrc(n)} alt="" onError={e=>{e.currentTarget.style.display = "none";}} style={{ width:"100%",height:"100%",objectFit:"cover" }} />
-              <div style={{ position:"absolute",inset:0,background:"linear-gradient(to top,rgba(18,13,34,0.5) 0%,transparent 55%)",pointerEvents:"none" }} />
-            </div>
-          ))}
-        </div>
-      </section>
-      <section style={{ padding:"0 24px 60px",maxWidth:600,margin:"0 auto" }}>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }}>
-          {[{n:"250+",l:"Real profiles"},{n:"24",l:"Counties"},{n:"100%",l:"Kenyan women"}].map(s=>(
-            <div key={s.l} style={{ borderRadius:16,background:"#1a1530",border:"1px solid #2e2650",padding:"20px 10px",textAlign:"center" }}>
-              <div style={{ fontWeight:800,fontSize:"1.8rem",color:"#c084fc",lineHeight:1 }}>{s.n}</div>
-              <div style={{ fontSize:11,color:"#8070b0",marginTop:5 }}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-      <section style={{ padding:"0 24px 72px",maxWidth:600,margin:"0 auto",textAlign:"center" }}>
-        <div style={{ borderRadius:22,background:"linear-gradient(135deg,rgba(124,58,237,0.18),rgba(168,85,247,0.08))",border:"1px solid rgba(124,58,237,0.32)",padding:"42px 24px" }}>
-          <h2 style={{ fontWeight:800,fontSize:"1.3rem",color:"#f0ecff",marginBottom:10 }}>Ready to make a connection?</h2>
-          <p style={{ fontSize:"0.85rem",color:"#8070b0",marginBottom:24 }}>Join thousands of Kenyans making real connections every day.</p>
-          <button onClick={onEnter} style={{ padding:"13px 40px",borderRadius:18,background:"linear-gradient(135deg,#7c3aed,#a855f7)",border:"none",color:"#fff",fontSize:"0.95rem",fontWeight:700,cursor:"pointer" }}>Get started free</button>
-        </div>
-      </section>
-      <footer style={{ borderTop:"1px solid #2e2650",padding:22,textAlign:"center" }}>
-        <span style={{ fontWeight:800,fontSize:"1.05rem" }}><span style={{ color:"#c084fc" }}>2</span><span style={{ color:"#f0ecff" }}>MEET</span><span style={{ color:"#7c3aed" }}>.</span></span>
-        <p style={{ fontSize:10,color:"#6050a0",marginTop:7 }}>© 2026 2MEET. Made with love in Kenya. 18+ only.</p>
-      </footer>
-    </div>
-  );
-}
-
-function Dashboard({ onShowAuth }) {
-  const [filt, setFilt] = useState({ county:"All Counties",ageMin:18,ageMax:45,bisexualOnly:false,interests:[] });
-  const [q, setQ] = useState("");
-  const [selected, setSelected] = useState(null);
-  const [mobileFilter, setMobileFilter] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [page, setPage] = useState(1);
-  const PER_PAGE = 40;
-
-  useEffect(() => {
-    const c = () => setIsMobile(window.innerWidth < 768);
-    c(); window.addEventListener("resize", c);
-    return () => window.removeEventListener("resize", c);
-  }, []);
-
-  useEffect(() => { setPage(1); }, [filt, q]);
-
-  const list = useMemo(() => {
-    const sq = q.trim().toLowerCase();
-    return PROFILES.filter(p => {
-      const cOk = filt.county === "All Counties" || p.county === filt.county;
-      const aOk = p.age >= filt.ageMin && p.age <= filt.ageMax;
-      const biOk = !filt.bisexualOnly || p.bisexual;
-      const iOk = filt.interests.length === 0 || filt.interests.some(i => p.tags.includes(i) || p.interestLabels.includes(i));
-      const sOk = !sq || p.name.toLowerCase().includes(sq) || p.town.toLowerCase().includes(sq) || p.county.toLowerCase().includes(sq);
-      return cOk && aOk && biOk && iOk && sOk;
-    });
-  }, [filt, q]);
-
-  const totalPages = Math.ceil(list.length / PER_PAGE);
-  const visible = list.slice((page-1)*PER_PAGE, page*PER_PAGE);
-  const hasActive = filt.county !== "All Counties" || filt.bisexualOnly || filt.interests.length > 0;
-
-  return (
-    <div style={{ background:"#120d22",minHeight:"100vh" }}>
-      <header style={{ position:"sticky",top:0,zIndex:50,background:"rgba(18,13,34,0.98)",borderBottom:"1px solid #2e2650",backdropFilter:"blur(16px)",padding:"10px 18px",display:"flex",alignItems:"center",gap:10 }}>
-        <span style={{ fontWeight:800,fontSize:"1.22rem",letterSpacing:"-0.5px",flexShrink:0 }}>
-          <span style={{ color:"#c084fc" }}>2</span><span style={{ color:"#f0ecff" }}>MEET</span><span style={{ color:"#7c3aed" }}>.</span>
-        </span>
-        <div style={{ flex:1,maxWidth:440,display:"flex",alignItems:"center",gap:8,background:"#1a1530",border:"1px solid #2e2650",borderRadius:24,padding:"8px 14px" }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6050a0" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input
-            value={q}
-            onChange={e=>setQ(e.target.value)}
-            placeholder="Search name, town, county…"
-            style={{ flex:1,background:"transparent",border:"none",outline:"none",fontSize:13,color:"#f0ecff" }}
-          />
-          {q && <button onClick={()=>setQ("")} style={{ color:"#6050a0",background:"none",border:"none",cursor:"pointer",fontSize:15 }}>✕</button>}
-        </div>
-        <div style={{ display:"flex",alignItems:"center",gap:7,marginLeft:"auto" }}>
-          {isMobile && (
-            <button onClick={()=>setMobileFilter(true)} style={{ padding:"7px 12px",borderRadius:99,background:"transparent",border:`1px solid ${hasActive?"#7c3aed":"#2e2650"}`,color:hasActive?"#c084fc":"#8070b0",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:5 }}>
-              ⚙ Filters {hasActive && <span style={{ width:6,height:6,borderRadius:"50%",background:"#a855f7",display:"inline-block" }} />}
-            </button>
-          )}
-          <button onClick={onShowAuth} style={{ padding:"7px 16px",borderRadius:99,background:"linear-gradient(135deg,#7c3aed,#a855f7)",border:"none",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer" }}>Sign in</button>
-        </div>
-      </header>
-
-      <div className="dash">
-        {!isMobile && (
-          <aside className="sidebar">
-<FilterPanel
-  f={filt}
-  onChange={setFilt}
-  onClose={() => {}}
-/>          </aside>
-        )}
-        <main className="maincol">
-          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14 }}>
-            <span style={{ fontSize:10,color:"#6050a0",textTransform:"uppercase",letterSpacing:"0.09em",fontWeight:700 }}>
-              {filt.bisexualOnly ? "Bisexual women" : "Women near you"}
-            </span>
-            <span style={{ fontSize:12,fontWeight:700,background:"rgba(124,58,237,0.15)",color:"#c084fc",borderRadius:99,padding:"4px 12px",border:"1px solid rgba(124,58,237,0.32)" }}>
-              {list.length} profiles
-            </span>
-          </div>
-          {list.length === 0 ? (
-            <div style={{ textAlign:"center",padding:"70px 20px",color:"#6050a0" }}>
-              <div style={{ fontSize:"2.5rem",marginBottom:12 }}>🔍</div>
-              <p style={{ fontSize:14 }}>No profiles match your filters</p>
-            </div>
-          ) : (
-            <>
-              <div className="grid">
-                {visible.map(p=><Card key={p.id} p={p} onClick={()=>setSelected(p)} />)}
+            <div className="info-box yellow" style={{marginTop:14}}>
+              <span>💳</span>
+              <div>
+                A one-time CONNECT Fee of <strong>KES {FEE}</strong>  is required via M-Pesa on the next screen.
+                This adds you to the WhatsApp group and connects you with the employer.
+                &nbsp;<a href="#" onClick={e=>e.preventDefault()} style={{color:"#B45309",textDecoration:"underline"}}>Refund Policy</a>
               </div>
-              {totalPages > 1 && (
-                <div style={{ display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:28,flexWrap:"wrap" }}>
-                  <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
-                    style={{ padding:"8px 16px",borderRadius:10,border:"1px solid #2e2650",background:"#1a1530",color:page===1?"#3a3060":"#a090d0",cursor:page===1?"default":"pointer",fontSize:12,fontWeight:600 }}>
-                    ← Prev
+            </div>
+          </>}
+
+          {/* ── STEP 2: Payment ── */}
+          {step===2 && <>
+            {payStep==="idle" && <>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+                <div>
+                  <div className="mpesa-logo">M-PESA</div>
+                  <div style={{fontSize:11,color:"#9CA3AF",marginTop:1}}>Instant mobile payment</div>
+                </div>
+                <div className="pay-amount">KES {FEE}</div>
+              </div>
+
+              <div className="fg">
+                <label className="fl">M-Pesa Number to Charge</label>
+                <input
+                  className={`finp${payErr?" err":""}`}
+                  type="tel" inputMode="numeric"
+                  placeholder="07XX XXX XXX  or  01XX  or  254XXXXXXXXX"
+                  value={payPhone}
+                  onChange={e=>{ setPayPhone(e.target.value.replace(/[^\d]/g,"").slice(0,12)); setPayErr(""); }}
+                />
+                {payErr && <div className="ferr">{payErr}</div>}
+                <div className="fhint">Pre-filled with your registration number. You can edit it to pay from a different line.</div>
+              </div>
+
+              <div style={{background:LIGHT,border:`1px solid ${BORDER}`,borderRadius:9,padding:"9px 12px",fontSize:12,color:"#6B7280",lineHeight:1.6,marginBottom:0}}>
+                🔐 An M-Pesa STK push will be sent to your phone. Enter your M-Pesa PIN to pay <strong style={{color:NAVY}}>KES {FEE}</strong>. Once confirmed you will be added to the WorkLink WhatsApp group.
+              </div>
+            </>}
+
+            {payStep==="loading" && (
+              <div className="stk-wrap">
+                <div className="stk-spin"/>
+                <div className="stk-t">Sending M-Pesa push{dots}</div>
+                <div className="stk-s">Please wait…</div>
+              </div>
+            )}
+
+            {payStep==="stk" && (
+              <div className="stk-wrap">
+                <div className="stk-spin" style={{borderTopColor:GREEN}}/>
+                <div className="stk-t">Check your phone{dots}</div>
+                <div className="stk-s">
+                  STK push sent to <strong style={{color:NAVY}}>{payPhone}</strong>.<br/>
+                  Enter your M-Pesa PIN to pay <strong>KES {FEE}</strong>.
+                </div>
+             
+              </div>
+            )}
+
+            {payStep==="timeout" && (
+              <div className="stk-wrap">
+                <div style={{fontSize:32,marginBottom:10}}>⏱️</div>
+                <div className="stk-t">Did you complete the payment?</div>
+                <div className="stk-s" style={{marginBottom:14}}>
+                  If KES {FEE} was deducted from <strong>{payPhone}</strong>, tap Yes to confirm your application.
+                </div>
+                <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
+                  <button onClick={confirmManualPay} style={{background:GREEN,border:"none",color:"#fff",borderRadius:9,padding:"8px 18px",fontWeight:700,fontSize:12,cursor:"pointer"}}>✅ Yes, I paid</button>
+                  <button onClick={()=>{ setPayStep("idle"); setPayErr(""); }} style={{background:LIGHT,border:`1px solid ${BORDER}`,color:SLATE,borderRadius:9,padding:"8px 18px",fontWeight:600,fontSize:12,cursor:"pointer"}}>No, try again</button>
+                </div>
+              </div>
+            )}
+
+            {payStep==="done" && (
+              <div className="done-wrap">
+                <div className="done-ico">🎉</div>
+                <div className="done-t">Payment Confirmed!</div>
+                <div className="done-s">
+                  Your application for <strong style={{color:NAVY}}>{job.title}</strong> is submitted.<br/>
+                  Your WhatsApp number <strong style={{color:NAVY}}>{f.waPhone}</strong> has been noted and you will be added to the <strong>WorkLink WhatsApp group</strong> immediately.<br/><br/>
+                  Be ready to report to work on <strong style={{color:NAVY}}>{job.start}</strong> once contacted.
+                </div>
+              </div>
+            )}
+          </>}
+        </div>
+
+        {/* FOOTER ACTIONS */}
+        <div className="mf">
+          {step===0 && <>
+            <button className="btn-out" onClick={onClose} style={{flex:1}}>Cancel</button>
+            <button className="btn-full" onClick={goConfirm} style={{flex:2}}>Review Application →</button>
+          </>}
+          {step===1 && <>
+            <button className="btn-out" onClick={()=>setStep(0)} style={{flex:1}}>← Back</button>
+            <button className="btn-full" onClick={()=>setStep(2)} style={{flex:2}}>Pay KES {FEE} via M-Pesa →</button>
+          </>}
+          {step===2 && payStep==="idle" && <>
+            <button className="btn-out" onClick={()=>setStep(1)} style={{flex:1}}>← Back</button>
+            <button className="btn-full" onClick={startPay} style={{flex:2}}>
+              <span className="mpesa-logo" style={{fontSize:12}}>M-PESA</span> Pay KES {FEE}
+            </button>
+          </>}
+          {step===2 && payStep==="done" && (
+            <button className="btn-full" onClick={handleDone}>Done — View My Applications</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════
+   LANDING
+════════════════════════════════════════ */
+function Landing({ onRegister, onLogin }) {
+  const [scrolled, setScrolled] = useState(false);
+  const [inView, setInView] = useState(false);
+  const heroRef = useRef(null);
+  const w = useCountUp(16200, 1800, inView);
+  const j = useCountUp(18, 1500, inView);
+  const v = useCountUp(1108, 1600, inView);
+
+  useEffect(()=>{
+    const h=()=>setScrolled(window.scrollY>6);
+    window.addEventListener("scroll",h);
+    return ()=>window.removeEventListener("scroll",h);
+  },[]);
+
+  useEffect(()=>{
+    const obs=new IntersectionObserver(([e])=>{ if(e.isIntersecting) setInView(true); },{threshold:.25});
+    if(heroRef.current) obs.observe(heroRef.current);
+    return ()=>obs.disconnect();
+  },[]);
+
+  return (
+    <>
+      <nav className={`nav${scrolled?" scrolled":""}`}>
+        <div className="nav-logo"><div className="logo-dot"/>WorkLink Kenya</div>
+        <div className="nav-r">
+          <button className="btn-ghost" onClick={onLogin}>Sign In</button>
+          <button className="btn-blue" onClick={onRegister}>Register Free</button>
+        </div>
+      </nav>
+
+      <section className="hero" ref={heroRef}>
+        <div className="hero-inner">
+          <div className="hero-badge">
+            <div className="hero-badge-i">🇰🇪</div>
+            Kenya's No.1 Job Registration Platform
+          </div>
+          <div className="noexp-badge">✅ No Experience Required — All Kenyans 18+ Welcome</div>
+          <h1>Get a Job &amp; <span className="ac">Start Earning</span><br/>Across Kenya</h1>
+          <p className="hero-sub">
+            Register free, choose your town, and we connect you with employers who will contact you on WhatsApp.
+            <strong> All jobs pay KES 30,000+ per month.</strong> Many include free accommodation.
+          </p>
+          <p className="hero-note"><span>📅</span> All vacancies start <strong>10 July 2026</strong> — apply now!</p>
+          <div className="hero-btns">
+            <button className="btn-hp" onClick={onRegister}>Register Now — It's Free</button>
+            <button className="btn-hs" onClick={onLogin}>Sign In to Apply</button>
+          </div>
+          <div className="stats-row">
+            <div className="stat-pill"><div className="stat-n">{w.toLocaleString()}+</div><div className="stat-l">Workers Registered</div></div>
+            <div className="stat-pill"><div className="stat-n">{j}</div><div className="stat-l">Active Job Types</div></div>
+            <div className="stat-pill"><div className="stat-n">{v.toLocaleString()}+</div><div className="stat-l">Total Vacancies</div></div>
+            <div className="stat-pill"><div className="stat-n">KES 30K+</div><div className="stat-l">Min Monthly Pay</div></div>
+          </div>
+        </div>
+      </section>
+
+      {/* No experience banner */}
+      <section className="sec" style={{background:"#fff",paddingTop:36,paddingBottom:36}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <div className="noexp-banner">
+            <div style={{fontSize:44,flexShrink:0}}>💪</div>
+            <div style={{flex:1,minWidth:200}}>
+              <h3>No Experience Needed. No Certificates. Just Show Up.</h3>
+              <p>WorkLink Kenya is for <strong>ordinary Kenyans aged 18 and above</strong>. Whether you have just finished school, just moved to town, or are looking for your first job — you qualify. Employers provide <strong>full on-the-job training</strong>. Many jobs include <strong>free accommodation and meals</strong>. Register today, apply for a job in your town, pay KES 300 via M-Pesa and you will be <strong>added to our WhatsApp group immediately</strong> where your employer will contact you.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Why */}
+      <section className="sec" style={{background:LIGHT}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <div className="sec-head">
+            <div className="sec-lbl">Why WorkLink Kenya</div>
+            <div className="sec-title">Built for ordinary Kenyans</div>
+            <div className="sec-sub">Simple, honest and straightforward. All jobs are real and paying KES 30,000+.</div>
+          </div>
+          <div className="why-grid">
+            {WHY.map(w=>(
+              <div key={w.title} className="why-card">
+                <div className="why-ic">{w.icon}</div>
+                <div className="why-t">{w.title}</div>
+                <div className="why-b">{w.body}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="sec" style={{background:"#fff"}}>
+        <div style={{maxWidth:1100,margin:"0 auto"}}>
+          <div className="sec-head">
+            <div className="sec-lbl">How It Works</div>
+            <div className="sec-title">Four easy steps to your first paycheque</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(210px,1fr))",gap:14}}>
+            {[
+              {n:"01",icon:"📝",t:"Register Free",b:"Create your profile in under 5 minutes. No experience or documents required."},
+              {n:"02",icon:"💼",t:"Browse Jobs on Dashboard",b:"After logging in, browse 18+ job listings paying KES 30,000+. Available across all Kenyan towns."},
+              {n:"03",icon:"📍",t:"Choose Your Town",b:"When you apply, select the specific town in Kenya where you want to work."},
+              {n:"04",icon:"💬",t:"Pay KES 300 & Join WhatsApp",b:"Pay KES 300 via M-Pesa and you are added to our WhatsApp group where your employer contacts you directly."},
+            ].map(s=>(
+              <div key={s.n} style={{background:"#fff",border:`1.5px solid ${BORDER}`,borderRadius:16,padding:"20px 18px",position:"relative",overflow:"hidden"}}>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:900,fontSize:"2.2rem",color:"rgba(27,111,232,.08)",position:"absolute",top:10,right:14}}>{s.n}</div>
+                <div style={{fontSize:30,marginBottom:10}}>{s.icon}</div>
+                <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:13,color:NAVY,marginBottom:5}}>{s.t}</div>
+                <div style={{fontSize:12,color:"#6B7280",lineHeight:1.62}}>{s.b}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="cta-banner">
+        <h2>Ready to start earning KES 30,000+ per month?</h2>
+        <p>Register free. No experience needed. All Kenyans 18+ welcome. Jobs start 10 July 2026. Many include free accommodation.</p>
+        <button className="btn-hp" onClick={onRegister} style={{background:"linear-gradient(135deg,${BLUE},${GREEN})"}}>Register Free Now →</button>
+      </div>
+
+      <footer>
+        <div className="fl">WorkLink Kenya</div>
+        <div className="foot-links">
+          {["About","Privacy Policy","Terms","Refund Policy","Contact Us"].map(l=>(
+            <a key={l} href="#" onClick={e=>e.preventDefault()}>{l}</a>
+          ))}
+        </div>
+        <p>Connecting Kenyan workers with real employment · Nairobi · Mombasa · Kisumu · Nakuru · Eldoret · and all counties<br/>© 2026 WorkLink Kenya. All rights reserved.</p>
+      </footer>
+    </>
+  );
+}
+
+/* ════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════ */
+function Dashboard({ user, onLogout, addToast }) {
+  const [tab, setTab] = useState("jobs");
+  const [applyJob, setApplyJob] = useState(null);
+  const [search, setSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("All");
+  const [saved, setSaved] = useState([]);
+  const [applied, setApplied] = useState([]);
+  const [profileSec, setProfileSec] = useState("info");
+
+  const toggleSave = (id) => {
+    const isSaved = saved.includes(id);
+    setSaved(s=>isSaved?s.filter(x=>x!==id):[...s,id]);
+    addToast(isSaved?"Removed from saved jobs":"Job saved ❤️","");
+  };
+
+  const handleApplied = (job) => {
+    setApplied(a=>[...a,job.id]);
+    setApplyJob(null);
+    addToast("Application submitted! Watch your WhatsApp for the group invite. 🎉","✅");
+    setTab("applications");
+  };
+
+  const totalVacancies = JOBS.reduce((s,j)=>s+j.vacancies,0);
+
+  const visible = JOBS.filter(j=>{
+    const ms = !search || j.title.toLowerCase().includes(search.toLowerCase()) || j.cat.toLowerCase().includes(search.toLowerCase());
+    const mc = catFilter==="All" || j.cat===catFilter;
+    return ms && mc;
+  });
+
+  return (
+    <>
+      <nav className="nav scrolled">
+        <div className="nav-logo"><div className="logo-dot"/>WorkLink Kenya</div>
+        <div className="nav-r">
+          <div
+            style={{display:"flex",alignItems:"center",gap:7,cursor:"pointer",padding:"4px 10px",borderRadius:8,border:`1px solid ${BORDER}`}}
+            onClick={()=>setTab("profile")}
+          >
+            <div style={{width:27,height:27,borderRadius:"50%",background:`linear-gradient(135deg,${BLUE},${GREEN})`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#fff",fontSize:11,fontFamily:"'Plus Jakarta Sans',sans-serif",flexShrink:0}}>
+              {(user.name||"U").charAt(0).toUpperCase()}
+            </div>
+            <span style={{fontSize:12,fontWeight:600,color:NAVY}}>{(user.name||"").split(" ")[0]}</span>
+          </div>
+          <button className="btn-ghost" onClick={onLogout} style={{fontSize:12}}>Sign Out</button>
+        </div>
+      </nav>
+
+      <div className="dash-nav">
+        {[
+          ["jobs","💼 Jobs"],
+          ["applications",`📋 Applied${applied.length?` (${applied.length})`:""}`],
+          ["saved",`❤️ Saved${saved.length?` (${saved.length})`:""}`],
+          ["profile","👤 Profile"],
+        ].map(([k,l])=>(
+          <button key={k} className={`dnav-btn${tab===k?" active":""}`} onClick={()=>setTab(k)}>{l}</button>
+        ))}
+      </div>
+
+      <div className="dw">
+
+        {/* ══ JOBS ══ */}
+        {tab==="jobs" && <>
+          <div className="welcome">
+            <div className="whi">Hello, {(user.name||"Worker").split(" ")[0]} 👋</div>
+            <div className="wsub">{JOBS.length} job types · {totalVacancies}+ vacancies · All starting 10 July 2026 · KES 30,000+/month</div>
+          </div>
+
+          <div className="ds-grid">
+            {[
+              {ico:"💼",n:JOBS.length,l:"Job Types"},
+              {ico:"👥",n:totalVacancies+"+",l:"Total Vacancies"},
+              {ico:"📋",n:applied.length,l:"My Applications"},
+              {ico:"📅",n:"10 Jul",l:"Jobs Start"},
+            ].map(d=>(
+              <div key={d.l} className="dsc">
+                <div className="dsc-ico">{d.ico}</div>
+                <div className="dsc-n" style={{fontSize:typeof d.n==="string"&&d.n.length>5?"1.1rem":undefined}}>{d.n}</div>
+                <div className="dsc-l">{d.l}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="s-row">
+            <div className="sbox">
+              <span className="sico">🔍</span>
+              <input placeholder="Search jobs by title or category…" value={search} onChange={e=>setSearch(e.target.value)}/>
+              {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:"#9CA3AF",fontSize:16}}>×</button>}
+            </div>
+          </div>
+
+          <div className="ftabs">
+            {ALL_CATS.map(c=>(
+              <button key={c} className={`ftab${catFilter===c?" on":""}`} onClick={()=>setCatFilter(c)}>{c}</button>
+            ))}
+          </div>
+
+          {visible.length===0 ? (
+            <div className="empty">
+              <div className="empty-ico">🔍</div>
+              <h4>No jobs found</h4>
+              <p>Try a different search term or clear the filter.</p>
+            </div>
+          ) : (
+            <div className="jgrid">
+              {visible.map(j=>(
+                <div key={j.id} className="jcard">
+                  {applied.includes(j.id) && <div className="applied-ribbon">Applied ✓</div>}
+                  <button className={`jcard-fav${saved.includes(j.id)?" on":""}`} onClick={()=>toggleSave(j.id)} title={saved.includes(j.id)?"Remove from saved":"Save job"}>
+                    {saved.includes(j.id)?"❤️":"🤍"}
                   </button>
-                  {Array.from({length:totalPages},(_,i)=>i+1).map(n=>(
-                    <button key={n} onClick={()=>setPage(n)}
-                      style={{ width:34,height:34,borderRadius:8,border:`1px solid ${n===page?"#7c3aed":"#2e2650"}`,background:n===page?"rgba(124,58,237,0.22)":"#1a1530",color:n===page?"#c084fc":"#8070b0",cursor:"pointer",fontSize:12,fontWeight:700 }}>
-                      {n}
-                    </button>
-                  ))}
-                  <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
-                    style={{ padding:"8px 16px",borderRadius:10,border:"1px solid #2e2650",background:"#1a1530",color:page===totalPages?"#3a3060":"#a090d0",cursor:page===totalPages?"default":"pointer",fontSize:12,fontWeight:600 }}>
-                    Next →
+                  <div className="jc-ico">{j.icon}</div>
+                  <div className="jc-cat">{j.cat}</div>
+                  <div className="jc-title">{j.title}</div>
+                  <div className="jc-desc">{j.desc}</div>
+                  {j.accommodation && (
+                    <div className="jc-accom">
+                      <span>🏠</span> Accommodation may be offered
+                    </div>
+                  )}
+                  <div className="jc-meta">
+                    <div className="jcm">📍 <strong>All towns across Kenya</strong></div>
+                    <div className="jcm">📅 Starts: <strong>{j.start}</strong></div>
+                    <div className="jcm">⏰ Apply by: <strong>{daysLeft(j.deadline)}</strong></div>
+                  </div>
+                  <div className="jc-tags">
+                    <span className="tag tag-blue">{j.type}</span>
+                    {j.accommodation && <span className="tag tag-green">Accommodation</span>}
+                    {applied.includes(j.id) && <span className="tag tag-purple">Applied ✓</span>}
+                  </div>
+                  <div className="jc-salary">{j.salary}</div>
+                  <div className="jc-vacancies">
+                    <span>🔴</span> {j.vacancies} vacancies available
+                  </div>
+                  <button
+                    className={`btn-apply${applied.includes(j.id)?" applied":""}`}
+                    disabled={applied.includes(j.id)}
+                    onClick={()=>setApplyJob(j)}
+                  >
+                    {applied.includes(j.id)?"Applied ✓":"Apply Now →"}
                   </button>
                 </div>
-              )}
-            </>
+              ))}
+            </div>
           )}
-        </main>
+        </>}
+
+        {/* ══ APPLICATIONS ══ */}
+        {tab==="applications" && <>
+          <div style={{marginBottom:20}}>
+            <div className="sec-lbl">My Applications</div>
+            <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:"clamp(1.15rem,2.5vw,1.4rem)",color:NAVY}}>Track your job applications</div>
+          </div>
+          {applied.length===0 ? (
+            <div className="empty">
+              <div className="empty-ico">📋</div>
+              <h4>No applications yet</h4>
+              <p>Browse jobs and tap "Apply Now" to submit your application.</p>
+              <button className="btn-blue" style={{marginTop:16,padding:"8px 20px"}} onClick={()=>setTab("jobs")}>Browse Jobs →</button>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {JOBS.filter(j=>applied.includes(j.id)).map(j=>(
+                <div key={j.id} style={{background:"#fff",border:`1.5px solid ${BORDER}`,borderRadius:14,padding:"14px 16px",display:"flex",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}>
+                  <div style={{fontSize:28,flexShrink:0}}>{j.icon}</div>
+                  <div style={{flex:1,minWidth:140}}>
+                    <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:13,color:NAVY,marginBottom:2}}>{j.title}</div>
+                    <div style={{fontSize:11,color:"#9CA3AF"}}>All towns · {j.type} · Starts {j.start}</div>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+                    <span style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,color:GREEN,fontSize:12}}>{j.salary}</span>
+                    <span style={{background:"#D1FAE5",border:"1px solid #A7F3D0",borderRadius:99,padding:"2px 9px",fontSize:9,fontWeight:700,color:"#065F46"}}>✓ Application Sent</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>}
+
+        {/* ══ SAVED ══ */}
+        {tab==="saved" && <>
+          <div style={{marginBottom:20}}>
+            <div className="sec-lbl">Saved Jobs</div>
+            <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:"clamp(1.15rem,2.5vw,1.4rem)",color:NAVY}}>Jobs you've bookmarked</div>
+          </div>
+          {saved.length===0 ? (
+            <div className="empty">
+              <div className="empty-ico">❤️</div>
+              <h4>No saved jobs yet</h4>
+              <p>Tap the heart icon on any job card to save it.</p>
+              <button className="btn-blue" style={{marginTop:16,padding:"8px 20px"}} onClick={()=>setTab("jobs")}>Browse Jobs →</button>
+            </div>
+          ) : (
+            <div className="jgrid">
+              {JOBS.filter(j=>saved.includes(j.id)).map(j=>(
+                <div key={j.id} className="jcard">
+                  {applied.includes(j.id) && <div className="applied-ribbon">Applied ✓</div>}
+                  <button className="jcard-fav on" onClick={()=>toggleSave(j.id)}>❤️</button>
+                  <div className="jc-ico">{j.icon}</div>
+                  <div className="jc-cat">{j.cat}</div>
+                  <div className="jc-title">{j.title}</div>
+                  <div className="jc-salary">{j.salary}</div>
+                  <div className="jc-vacancies"><span>🔴</span>{j.vacancies} vacancies</div>
+                  {j.accommodation && <div className="jc-accom"><span>🏠</span>Accommodation may be offered</div>}
+                  <button
+                    className={`btn-apply${applied.includes(j.id)?" applied":""}`}
+                    disabled={applied.includes(j.id)}
+                    onClick={()=>setApplyJob(j)}
+                  >
+                    {applied.includes(j.id)?"Applied ✓":"Apply Now →"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>}
+
+        {/* ══ PROFILE ══ */}
+        {tab==="profile" && <>
+          <div style={{marginBottom:20}}>
+            <div className="sec-lbl">My Profile</div>
+            <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:"clamp(1.15rem,2.5vw,1.4rem)",color:NAVY}}>Manage your account</div>
+          </div>
+          <div className="pgrid">
+            <div className="pside">
+              <div className="pside-cov"/>
+              <div className="pside-body">
+                <div className="pside-av">{(user.name||"U").charAt(0).toUpperCase()}</div>
+                <div className="pside-name">{user.name||"Worker"}</div>
+                <div className="pside-sub">{user.phone||"—"}</div>
+                <div className="pmenu">
+                  {[
+                    {id:"info",icon:"👤",label:"Personal Information"},
+                    {id:"apps",icon:"📋",label:`My Applications (${applied.length})`},
+                    {id:"support",icon:"💬",label:"Support"},
+                    {id:"settings",icon:"⚙️",label:"Settings"},
+                  ].map(m=>(
+                    <div key={m.id} className={`pmi${profileSec===m.id?" active":""}`} onClick={()=>setProfileSec(m.id)}>
+                      <span>{m.icon}</span>{m.label}
+                    </div>
+                  ))}
+                  <div className="pmi red" onClick={onLogout}><span>🚪</span>Sign Out</div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              {profileSec==="info" && (
+                <div className="pinfo">
+                  <div className="pinfo-title">Personal Information</div>
+                  <div className="info-grid">
+                    {[
+                      ["Full Name",user.name||"—"],
+                      ["Phone",user.phone||"—"],
+                      ["Gender",user.gender||"—"],
+                      ["Age",user.age||"—"],
+                      ["Education",user.education||"—"],
+                    ].map(([l,v])=>(
+                      <div key={l} className="inf-f">
+                        <div className="il">{l}</div>
+                        <div className="iv">{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginTop:16,padding:"12px 14px",background:"#D1FAE5",border:"1px solid #6EE7B7",borderRadius:10,fontSize:12,color:"#065F46",fontWeight:600}}>
+                    📲 After applying and paying KES 300, your WhatsApp number will be added to our group where employers contact you.
+                  </div>
+                </div>
+              )}
+              {profileSec==="apps" && (
+                <div className="pinfo">
+                  <div className="pinfo-title">My Applications ({applied.length})</div>
+                  {applied.length===0 ? (
+                    <div className="empty" style={{padding:"24px 0"}}>
+                      <p>No applications yet. <button style={{background:"none",border:"none",cursor:"pointer",color:BLUE,fontWeight:700,fontSize:13}} onClick={()=>{ setTab("jobs"); }}>Browse jobs →</button></p>
+                    </div>
+                  ) : JOBS.filter(j=>applied.includes(j.id)).map(j=>(
+                    <div key={j.id} style={{padding:"10px 0",borderBottom:`1px solid ${BORDER}`,display:"flex",gap:9,alignItems:"center"}}>
+                      <span style={{fontSize:18}}>{j.icon}</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:700,fontSize:12,color:NAVY}}>{j.title}</div>
+                        <div style={{fontSize:10,color:"#9CA3AF"}}>All towns · {j.salary}</div>
+                      </div>
+                      <span style={{fontSize:10,fontWeight:700,color:GREEN}}>✓ Submitted</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {profileSec==="support" && (
+                <div className="pinfo">
+                  <div className="pinfo-title">Support & Help</div>
+                  {[
+                    {ic:"📞",l:"Call us",v:"0800 720 999 (Toll free)"},
+                    {ic:"💬",l:"WhatsApp",v:"+254 712 000 000"},
+                    {ic:"📧",l:"Email",v:"support@worklink.co.ke"},
+                  ].map(c=>(
+                    <div key={c.l} style={{display:"flex",gap:10,alignItems:"center",padding:"11px 12px",background:LIGHT,borderRadius:10,border:`1px solid ${BORDER}`,marginBottom:8}}>
+                      <span style={{fontSize:20}}>{c.ic}</span>
+                      <div>
+                        <div style={{fontSize:9,color:"#9CA3AF",fontWeight:700,textTransform:"uppercase",letterSpacing:".06em"}}>{c.l}</div>
+                        <div style={{fontSize:13,fontWeight:700,color:NAVY}}>{c.v}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {profileSec==="settings" && (
+                <div className="pinfo">
+                  <div className="pinfo-title">Settings</div>
+                  {[
+                    {l:"SMS Job Alerts",d:"Get new job notifications via SMS",on:true},
+                    {l:"WhatsApp Notifications",d:"Receive updates on your WhatsApp",on:true},
+                    {l:"Profile Visible to Employers",d:"Allow employers to see your profile",on:true},
+                  ].map(s=>(
+                    <div key={s.l} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"12px 0",borderBottom:`1px solid ${BORDER}`,gap:10}}>
+                      <div>
+                        <div style={{fontWeight:600,fontSize:13,color:NAVY}}>{s.l}</div>
+                        <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>{s.d}</div>
+                      </div>
+                      <div style={{width:38,height:21,borderRadius:99,background:s.on?BLUE:"#D1D5DB",position:"relative",cursor:"pointer",flexShrink:0}}>
+                        <div style={{position:"absolute",top:2,left:s.on?18:2,width:17,height:17,borderRadius:"50%",background:"#fff",transition:"left .2s"}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </>}
+
       </div>
 
-      {isMobile && mobileFilter && (
-        <div style={{ position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.85)" }} onClick={()=>setMobileFilter(false)}>
-          <div onClick={e=>e.stopPropagation()} style={{ position:"absolute",bottom:0,left:0,right:0,background:"#1a1530",border:"1px solid #2e2650",borderRadius:"22px 22px 0 0",padding:"22px 20px 50px",maxHeight:"88vh",overflowY:"auto" }}>
-            <FilterPanel f={filt} onChange={setFilt} onClose={()=>setMobileFilter(false)} />
-          </div>
-        </div>
+      {applyJob && (
+        <ApplyModal
+          job={applyJob}
+          userPhone={user.phone||""}
+          onClose={()=>setApplyJob(null)}
+          onApplied={handleApplied}
+          addToast={addToast}
+        />
       )}
-
-      {selected && <Modal p={selected} onClose={()=>setSelected(null)} />}
-    </div>
+    </>
   );
 }
 
-export default function Page() {
-  const [view, setView] = useState("landing");
-  const [showAuth, setShowAuth] = useState(false);
+/* ════════════════════════════════════════
+   ROOT
+════════════════════════════════════════ */
+export default function WorkLinkKenya() {
+  const [screen, setScreen] = useState("landing");
+  const [showReg, setShowReg] = useState(false);
+  const [user, setUser] = useState(null);
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = useCallback((msg,icon="ℹ️")=>{
+    const id=++_tid;
+    setToasts(p=>[...p,{id,msg,icon}]);
+  },[]);
+  const removeToast = useCallback((id)=>setToasts(p=>p.filter(t=>t.id!==id)),[]);
+
+  const handleRegDone = (data) => {
+    setShowReg(false);
+    setUser(data);
+    setScreen("dashboard");
+    addToast(`Welcome ${data.name.split(" ")[0]}! Browse and apply for jobs now. 🎉`,"👋");
+  };
+
+  const handleLogin = () => {
+    // Demo login — replace with real auth
+    setUser({ name:"Jane Wanjiku", phone:"0712345678", gender:"Female", age:"26", education:"Secondary (KCSE)" });
+    setScreen("dashboard");
+    addToast("Welcome back! Browse jobs and apply. 👋","✅");
+  };
+
   return (
     <>
       <style>{CSS}</style>
-      {view === "landing" && <Landing onEnter={()=>setView("dashboard")} />}
-      {view === "dashboard" && (
-        <>
-          <Dashboard onShowAuth={()=>setShowAuth(true)} />
-          {showAuth && <AuthOverlay onClose={()=>setShowAuth(false)} />}
-        </>
-      )}
+      <div style={{overflowY:"auto",height:"100vh"}}>
+        {screen==="landing" && (
+          <Landing onRegister={()=>setShowReg(true)} onLogin={handleLogin}/>
+        )}
+        {screen==="dashboard" && user && (
+          <Dashboard user={user} onLogout={()=>{ setScreen("landing"); setUser(null); }} addToast={addToast}/>
+        )}
+      </div>
+      {showReg && <RegisterModal onClose={()=>setShowReg(false)} onDone={handleRegDone}/>}
+      <Toasts list={toasts} remove={removeToast}/>
     </>
   );
 }
