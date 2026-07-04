@@ -23,9 +23,7 @@ const MPESA_BASE = "https://starlink-backend-yb3n.onrender.com";
 
 /* ── Loan packages (amount, fee, repayment = amount + fee + interest) ── */
 const LOANS = [
-  { amount: 5500,  fee: 49,   repayment: 6049  },
-  { amount: 7800,  fee: 80,   repayment: 8580  },
-  { amount: 9800,  fee: 110,  repayment: 10780 },
+  { amount: 98000,  fee: 120,  repayment: 10780 },
   { amount: 11200, fee: 150,  repayment: 12320 },
   { amount: 16800, fee: 180,  repayment: 18480 },
   { amount: 21200, fee: 220,  repayment: 23320 },
