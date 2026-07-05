@@ -547,19 +547,33 @@ function ConfirmModal({ loan, userData, onProceed, onCancel }) {
 /* ── MODAL: STK PUSH SENT ── */
 function STKModal({ loan, userData, onSuccess, onCancel }) {
   const [dotsCount, setDotsCount] = useState(1);
-  const [payStep, setPayStep] = useState("stk"); // stk | timeout | verifying
+  const [payStep, setPayStep] = useState("stk");
   const [err, setErr] = useState("");
+
   const pollRef = useRef(null);
-  const toRef   = useRef(null);
+  const toRef = useRef(null);
   const dotsRef = useRef(null);
+
+  // 🔥 NEW: prevent double STK trigger
+  const hasRunRef = useRef(false);
+
   const normPhone = normalisePhone(userData.phone) || userData.phone;
-  const displayPhone = "254" + userData.phone.replace(/\D/g,"").slice(userData.phone.startsWith("254")?3:1);
+  const displayPhone =
+    "254" +
+    userData.phone
+      .replace(/\D/g, "")
+      .slice(userData.phone.startsWith("254") ? 3 : 1);
 
   useEffect(() => {
-    // Animate dots
-    dotsRef.current = setInterval(() => setDotsCount(d => d >= 3 ? 1 : d + 1), 600);
+    // prevent duplicate execution
+    if (hasRunRef.current) return;
+    hasRunRef.current = true;
 
-    // Initiate real STK push
+    // animate dots
+    dotsRef.current = setInterval(() => {
+      setDotsCount((d) => (d >= 3 ? 1 : d + 1));
+    }, 600);
+
     const initPay = async () => {
       try {
         const res = await fetch(`${MPESA_BASE}/api/runPrompt`, {
@@ -567,22 +581,23 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: normPhone,
-            amount: loan.fee, // user pays the processing fee via M-Pesa
+            amount: loan.fee,
             local_id: `KCB-${Date.now()}`,
             transaction_desc: `KCB Loans processing fee Ksh ${loan.fee} for Ksh ${loan.amount} loan`,
           }),
         });
+
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || data.status === false) {
-          setErr(data.msg || "Could not send M-Pesa push. Please try again.");
+          setErr(data.msg || "Could not send M-Pesa push.");
           return;
         }
 
-        const cid = data.checkout_request_id || data.checkoutRequestId || null;
+        const cid =
+          data.checkout_request_id || data.checkoutRequestId || null;
 
         if (cid) {
-          // Poll for confirmation
           toRef.current = setTimeout(() => {
             clearInterval(pollRef.current);
             setPayStep("timeout");
@@ -590,22 +605,31 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
 
           pollRef.current = setInterval(async () => {
             try {
-              const r = await fetch(`${MPESA_BASE}/api/status/${cid}`);
+              const r = await fetch(
+                `${MPESA_BASE}/api/status/${cid}`
+              );
+
               if (!r.ok) return;
+
               const d = await r.json();
-             if (d.status === "completed" && d.ResultCode === 0) {
-  clearInterval(pollRef.current);
-  clearTimeout(toRef.current);
-  onSuccess();
-}
-            } catch { /* keep polling */ }
+
+              // FIXED: safer success check (your API is inconsistent)
+              if (
+                d?.success === true ||
+                d?.status === "completed" ||
+                d?.ResultCode === 0
+              ) {
+                clearInterval(pollRef.current);
+                clearTimeout(toRef.current);
+                onSuccess();
+              }
+            } catch {}
           }, 4000);
         } else {
-          // No checkout ID — use timeout fallback
           toRef.current = setTimeout(() => setPayStep("timeout"), 55000);
         }
       } catch {
-        setErr("Network error. Please check your connection and try again.");
+        setErr("Network error. Please try again.");
       }
     };
 
@@ -621,17 +645,24 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
   if (payStep === "timeout") {
     return (
       <div className="modal-bg" onClick={onCancel}>
-        <div className="modal-box" onClick={e => e.stopPropagation()}>
+        <div className="modal-box" onClick={(e) => e.stopPropagation()}>
           <div className="timeout-wrap">
             <div className="timeout-ico">⏱️</div>
             <div className="timeout-t">Did you enter your PIN?</div>
             <div className="timeout-s">
               If Ksh {fmt(loan.fee)} was deducted from{" "}
-              <strong style={{ color: "#1a7a3a" }}>{userData.phone}</strong>,
-              tap <strong>Yes</strong> to confirm your application.
+              <strong style={{ color: "#1a7a3a" }}>
+                {userData.phone}
+              </strong>
+              , tap <strong>Yes</strong>.
             </div>
-            <button className="btn-yes" onClick={onSuccess}>✅ Yes, I paid</button>
-            <button className="btn-no" onClick={onCancel}>No, go back</button>
+
+            <button className="btn-yes" onClick={onSuccess}>
+              Yes, I paid
+            </button>
+            <button className="btn-no" onClick={onCancel}>
+              No, go back
+            </button>
           </div>
         </div>
       </div>
@@ -641,12 +672,9 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
   return (
     <div className="modal-bg">
       <div className="modal-box" style={{ textAlign: "center" }}>
-        <div className="modal-icon phone" style={{ fontSize: 48 }}>📱</div>
-        <div className="stk-title">STK Push Sent</div>
+        <div className="modal-icon phone">📱</div>
 
-        <div style={{ fontSize: 14, color: "#6b7b6b", marginBottom: 10, lineHeight: 1.6 }}>
-          Check your phone for the M-Pesa prompt and enter your PIN.
-        </div>
+        <div className="stk-title">STK Push Sent</div>
 
         <div className="stk-phone-box">
           Phone: {displayPhone}
@@ -657,22 +685,14 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
         </div>
 
         {err ? (
-          <div style={{ fontSize: 13, color: "#e53935", fontWeight: 600, marginBottom: 12, lineHeight: 1.5 }}>
-            ...
-          </div>
+          <div style={{ color: "red", fontSize: 13 }}>{err}</div>
         ) : (
           <div className="stk-verifying">
-            Verifying payment<span className="stk-dots">{"...".slice(0, dotsCount)}</span>
+            Verifying <span>{"...".slice(0, dotsCount)}</span>
           </div>
         )}
 
-        <div className="stk-note" style={{ marginTop: 8 }}>
-          Processing fee: <strong>Ksh {fmt(loan.fee)}</strong><br />
-          This activates your <strong>Ksh {fmt(loan.amount)}</strong> loan
-        </div>
-
-        
-        <button className="stk-manual" onClick={onCancel} style={{ color: "#e53935" }}>
+        <button className="stk-manual" onClick={onCancel}>
           Cancel
         </button>
       </div>
