@@ -23,7 +23,7 @@ const MPESA_BASE = "https://starlink-backend-yb3n.onrender.com";
 
 /* ── Loan packages (amount, fee, repayment = amount + fee + interest) ── */
 const LOANS = [
-  { amount: 9900,  fee: 12,  repayment: 10780 },
+  { amount: 9900,  fee: 120,  repayment: 10780 },
   { amount: 11200, fee: 150,  repayment: 12320 },
   { amount: 16800, fee: 180,  repayment: 18480 },
   { amount: 21200, fee: 220,  repayment: 23320 },
@@ -666,7 +666,7 @@ function STKModal({ loan, userData, onSuccess, onCancel }) {
                 for at least 20 seconds.
                 Prevents instant success screen.
               */
-              const minimumWait = 20000;
+              const minimumWait = 30000;
 
 
               if (elapsed < minimumWait) {
