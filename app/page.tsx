@@ -23,16 +23,16 @@ const MPESA_BASE = "https://payhero-backend-m78g.onrender.com";
 
 /* ── Loan packages (amount, fee, repayment = amount + fee + interest) ── */
 const LOANS = [
-  { amount: 9900,  fee: 120,  repayment: 10780 },
-  { amount: 11200, fee: 150,  repayment: 12320 },
-  { amount: 16800, fee: 180,  repayment: 18480 },
-  { amount: 21200, fee: 220,  repayment: 23320 },
-  { amount: 25600, fee: 350,  repayment: 28160 },
-  { amount: 30000, fee: 420,  repayment: 33000 },
-  { amount: 35400, fee: 540,  repayment: 38940 },
-  { amount: 39800, fee: 680,  repayment: 43780 },
-  { amount: 44200, fee: 960,  repayment: 48620 },
-  { amount: 48600, fee: 1550, repayment: 53460 },
+  { amount: 10900,  fee: 150,  repayment: 10780 },
+  { amount: 15200, fee: 200,  repayment: 12320 },
+  { amount: 20800, fee: 290,  repayment: 18480 },
+  { amount: 25200, fee: 350,  repayment: 23320 },
+  { amount: 30600, fee: 450,  repayment: 28160 },
+  { amount: 40000, fee: 550,  repayment: 33000 },
+  { amount: 50400, fee: 680,  repayment: 38940 },
+  { amount: 60800, fee: 1080,  repayment: 43780 },
+  { amount: 70200, fee: 1900,  repayment: 48620 },
+  { amount: 80600, fee: 2550, repayment: 53460 },
 ];
 
 
