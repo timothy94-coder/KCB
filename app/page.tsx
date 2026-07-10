@@ -536,7 +536,7 @@ function ConfirmModal({ loan, userData, onProceed, onCancel }) {
         <div className="modal-phone-num">Phone: {userData.phone}</div>
 
         <button className="btn-proceed" onClick={onProceed}>
-          Proceed with Application
+          Pay Application Fee,Proceed
         </button>
         <button className="btn-cancel" onClick={onCancel}>Cancel</button>
       </div>
