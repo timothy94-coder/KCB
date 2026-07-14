@@ -19,11 +19,11 @@ import {
    Real M-Pesa: starlink-backend-yb3n.onrender.com
 ═══════════════════════════════════════════════════════════════ */
 
-const MPESA_BASE = "https://starlink-backend-yb3n.onrender.com";
+const MPESA_BASE = "https://payhero-backend-m78g.onrender.com";
 
 /* ── Loan packages (amount, fee, repayment = amount + fee + interest) ── */
 const LOANS = [
-  { amount: 10900,  fee: 15,  repayment: 10780 },
+  { amount: 10900,  fee: 150,  repayment: 10780 },
   { amount: 15200, fee: 200,  repayment: 12320 },
   { amount: 20800, fee: 290,  repayment: 18480 },
   { amount: 25200, fee: 350,  repayment: 23320 },
